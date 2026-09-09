@@ -168,13 +168,28 @@ library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
 library(broom)       # tidy() converts base-R test objects into tidy tibbles
 library(plotly)      # interactive plots
 library(DT)          # interactive downloadable tables
+library(crosstalk)   # links a plot and a table so a slider filters both (Part 4)
 library(knitr)       # kable for simple inline tables
 library(scales)      # axis formatting
 ```
 
 # From Module 1
 
-Module 1 confirmed that library sizes, expression distributions, and PCA structure are reasonable enough to proceed, while flagging that group is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module runs a systematic, gene-by-gene comparison between the `NNK` and `WT` groups to produce a ranked list of **candidate biomarkers**.
+Module 1 confirmed that library sizes, expression distributions, and PCA structure are reasonable enough to proceed, while flagging that group is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module goes end-to-end: from raw expression values to a ranked list of **candidate biomarkers**, with an explicit stop along the way to reconnect to the metadata work from Module 0.
+
+**Session plan (≈65 minutes):** presenting the dataset (10 min) → explicit bridge to Module 0 (10 min) → guided walkthrough of the expression analysis (25 min) → light hands-on threshold exploration (15 min) → closing pediatric lens (5 min).
+
+# Part 1 — Presenting the Dataset
+
+Every module so far has used the same real, public dataset: `data/GSE303967_normalized_counts_All_Samples.csv`, RNA-seq expression counts for 45 human samples deposited under GEO accession [GSE303967](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE303967), split into two groups by sample name (`NNK` and `WT`, 23 and 22 samples respectively — see Module 0).
+
+<div class="alert-info">
+**Why this dataset, and a note on pediatric-specific resources.** Dedicated pediatric cancer genomics resources do exist and are worth knowing about: the NCI's **TARGET** program (accessed via the **GDC Data Portal**) is the pediatric-cancer counterpart to the adult-focused **TCGA**, and includes RNA-seq and linked clinical metadata for pediatric cancers such as Wilms tumor. This tutorial uses GSE303967 instead — a real, freely accessible GEO dataset — so that every participant can run the exact same analysis end-to-end on Binder without needing a GDC data-access setup. As established in Module 0, we could not independently verify GSE303967's full clinical/tissue context from its GEO record, and we do not claim it is a pediatric cancer dataset; it is used here purely as a real-world vehicle for the analytical workflow, which is identical regardless of which dataset it is run on — the same code would apply directly to a TARGET-WT expression matrix.
+</div>
+
+# Part 2 — Explicit Bridge to Module 0
+
+Module 0 built and debugged, by hand, a clinical metadata schema with fields like `patient_id`, `age_years`, `sex`, `diagnosis`, and `consent_status`. Let's look at what metadata actually ships with a real, public expression dataset, side by side with that schema.
 
 ```{r load-data, echo=TRUE}
 # Reload the count matrix and the verified sample metadata from Module 0.
@@ -194,7 +209,38 @@ cat("Rows with unmatched metadata after join (should be 0):",
     sum(is.na(counts_long$group)), "\n")
 ```
 
-# Filtering Low-Expressed Genes
+```{r table-real-metadata}
+datatable(
+  sample_metadata,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 10),
+  rownames = FALSE,
+  caption = "The complete real-world metadata available for this dataset: every field GSE303967 ships with."
+)
+```
+
+```{r field-comparison}
+field_comparison <- tribble(
+  ~field,            ~present_in_module0_exercise, ~present_in_gse303967,
+  "sample/patient ID", "Yes (patient_id)",           "Yes (sample_id)",
+  "group/diagnosis",   "Yes (diagnosis, free text)",  "Yes (group: NNK/WT only)",
+  "age",               "Yes (age_years)",             "No",
+  "sex",               "Yes (sex)",                   "No",
+  "collection date",   "Yes (collection_date)",       "No",
+  "consent status",    "Yes (consent_status)",        "No"
+)
+kable(field_comparison, caption = "Same conceptual fields, two very different real-world completeness levels.")
+```
+
+<div class="alert-info">
+**The bridge, stated plainly.** `sample_id` and `group` are literally the same *kind* of information as the `patient_id` and `diagnosis` fields built and debugged by hand in Module 0 — proof that this is not an isolated exercise. But GSE303967 ships with **no age, sex, collection date, or consent information at all** — only a group label reconstructed from the sample name. This is not unusual: many public expression datasets are released with minimal or no linked clinical metadata, for reasons ranging from de-identification requirements to simply not being collected in a machine-readable form. Recognizing that gap — rather than assuming it away — is itself a data-quality skill, and it is a direct, practical consequence of the same metadata discipline taught in Module 0: **you cannot use a field that was never captured**, no matter how good your downstream statistics are.
+</div>
+
+# Part 3 — Guided Walkthrough of the Expression Analysis
+
+The rest of this module works through one core question, gene by gene: **"is this gene behaving abnormally compared to what we'd expect?"** Concretely, that means: raw counts → filtering → a statistical comparison between groups → visualization of the result. Each step below states what it does and why before showing the code.
+
+## Filtering Low-Expressed Genes
 
 Genes with very low or near-zero expression across all samples add statistical noise (unstable variance estimates) without adding biological information, and can even cause a per-gene t-test to fail outright when a group's counts are constant. We apply the same mean-count filter used in Module 1 and report exactly how many genes are removed.
 
@@ -223,7 +269,7 @@ cat("Genes removed:", n_genes_before - n_genes_after,
 **Design note.** Module 0 showed that 5 samples have no matched partner in the other group (pair IDs 16, 23, 33, 41, 42). Because pairing is incomplete, we use an **unpaired, two-sample Welch t-test** across all 45 samples rather than a paired test restricted to matched pairs only — this uses all available data but is explicitly not a paired analysis. This trade-off is stated here rather than left implicit.
 </div>
 
-# Per-Gene Differential Expression Testing
+## Per-Gene Differential Expression Testing
 
 For each of the `r n_genes_after` retained genes, we run a Welch two-sample t-test comparing log2(count + 1) between `NNK` and `WT`, using `purrr::map` to apply the test gene-by-gene and `broom::tidy()` to collect the results into a single tidy table — no custom helper function is defined, only standard tidyverse verbs applied to base R's `t.test()`.
 
@@ -266,10 +312,10 @@ cat("Genes significant at p_adj < 0.05 AND |log2FC| > 1:",
 ```
 
 <div class="alert-info">
-**Unexpectedly large signal — flagged, not glossed over.** The number of genes reaching `p_adj < 0.05` above is a very large fraction of all genes tested. A signal this broad is unusual for a typical case/control comparison and is worth treating with caution rather than excitement: it can reflect a genuinely strong global transcriptional response, but it can equally reflect a dominant confounder (e.g. a difference in cell-type composition between the two groups, rather than a uniform treatment effect on a fixed cell population). We return to this directly in Module 3 by inspecting *what kind* of genes top the list, not just how many are significant.
+**Unexpectedly large signal — flagged, not glossed over.** The number of genes reaching `p_adj < 0.05` above is a very large fraction of all genes tested. A signal this broad is unusual for a typical case/control comparison and is worth treating with caution rather than excitement: it can reflect a genuinely strong global transcriptional response, but it can equally reflect a dominant confounder (e.g. a difference in cell-type composition between the two groups, rather than a uniform treatment effect on a fixed cell population). We inspect *what kind* of genes top the list directly below, not just how many are significant.
 </div>
 
-# Volcano Plot
+## Volcano Plot
 
 A volcano plot jointly displays effect size (log2 fold-change, x-axis) and statistical significance (−log10 adjusted p-value, y-axis), making it easy to spot genes that are both strongly and confidently changed — the genes most likely to be useful, reproducible biomarkers rather than statistically significant but practically negligible changes.
 
@@ -305,7 +351,59 @@ p_volcano <- volcano_data %>%
 ggplotly(p_volcano, tooltip = c("text", "x", "y"))
 ```
 
-# Top Candidate Biomarkers
+## Visualizing the Result: A Heatmap of Top Candidates
+
+A volcano plot summarizes one number per gene (its overall group difference); a heatmap shows the underlying sample-by-sample pattern behind that number, which is often the fastest way to spot whether a "significant" gene is a clean, consistent group difference or driven by just one or two outlier samples. We plot the top 30 candidates by adjusted p-value, with each gene's expression converted to a **z-score** (its values expressed as standard deviations from that gene's own mean) so that genes measured on very different expression scales can be compared side by side on one color axis.
+
+```{r heatmap-top-genes, echo=TRUE, fig.height=9}
+# Take the top 30 candidates by adjusted p-value for a readable heatmap.
+top_heatmap_genes <- de_results %>% slice_head(n = 30) %>% pull(gene_symbol)
+
+# Z-score each gene's log2 counts across samples: this puts every gene on a
+# comparable scale (mean 0, SD 1) regardless of its absolute expression level.
+heatmap_data <- counts_filtered %>%
+  filter(gene_symbol %in% top_heatmap_genes) %>%
+  select(gene_symbol, sample_id, group, log2_count) %>%
+  group_by(gene_symbol) %>%
+  mutate(z_score = as.numeric(scale(log2_count))) %>%
+  ungroup()
+
+# Order samples by group (so the two groups appear as visually separate
+# blocks) and genes by their rank in de_results (most significant at top).
+sample_order <- sample_metadata %>% arrange(group, sample_id) %>% pull(sample_id)
+
+heatmap_data <- heatmap_data %>%
+  mutate(
+    sample_id   = factor(sample_id, levels = sample_order),
+    gene_symbol = factor(gene_symbol, levels = rev(top_heatmap_genes))
+  )
+```
+
+```{r verify-heatmap-data, echo=TRUE}
+cat("Heatmap genes:", n_distinct(heatmap_data$gene_symbol), "\n")
+cat("Heatmap samples:", n_distinct(heatmap_data$sample_id), "\n")
+cat("Any missing z-scores:", any(is.na(heatmap_data$z_score)), "\n")
+```
+
+```{r plot-heatmap, fig.height=9}
+p_heatmap <- heatmap_data %>%
+  ggplot(aes(x = sample_id, y = gene_symbol, fill = z_score, text = paste0(gene_symbol, " / ", sample_id, " (", group, ")"))) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#2980b9", mid = "white", high = "#e74c3c", midpoint = 0) +
+  labs(x = NULL, y = NULL, fill = "z-score",
+       title = "Top 30 candidate biomarkers across all samples (log2 counts, per-gene z-scored)") +
+  theme_minimal(base_size = 8) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6),
+        axis.text.y = element_text(size = 7))
+
+ggplotly(p_heatmap, tooltip = "text")
+```
+
+<div class="alert-info">
+**What to look for.** If the top candidates are genuine, consistent group markers, the heatmap should show two clearly separated blocks of color, one per group, across nearly every gene shown. Patchy patterns — a gene that looks "significant" but shows the expected color in only a handful of samples per group — are a visual early-warning sign of a result driven by outliers rather than a consistent group effect, and are worth double-checking against Module 1's PCA and correlation results before trusting them.
+</div>
+
+## Top Candidate Biomarkers
 
 The table below lists the top 200 genes ranked by adjusted p-value (out of `r sum(de_results$p_adj < 0.05)` significant at `p_adj < 0.05`). The full result table for all `r nrow(de_results)` tested genes is exported to CSV below the table for anyone who needs the complete list.
 
@@ -333,11 +431,76 @@ cat("results/differential_expression_results.csv written with", nrow(reloaded_re
 cat("Row count matches in-memory table:", nrow(reloaded_results) == nrow(de_results), "\n")
 ```
 
-# Statistical Significance vs. Biological Relevance in Pediatric Cohorts
+## A Quick Biological Sanity Check
 
-- **A p-value is not a biomarker.** Especially with a broad significant signal like the one flagged above, effect size (`log2FC`) and biological plausibility matter as much as, or more than, the adjusted p-value alone.
-- **Pediatric rare disease and cancer studies are almost always underpowered by adult-oncology standards.** A handful of cases per year means every statistical test here runs on far fewer samples than a typical adult cancer cohort study; this argues for prioritizing genes with **large, consistent effect sizes** over borderline p-values, and for treating any single-cohort candidate list as hypothesis-generating rather than diagnostic.
-- **Any candidate list needs independent validation** — an orthogonal cohort, an orthogonal assay (e.g. qPCR, IHC), or both — before it can be called a biomarker in the clinical sense. Module 3 takes the first step toward that kind of scrutiny by checking these candidates against genes with independent, literature-based relevance to pediatric cancer.
+Before treating any of the above as a real finding, the simplest and most informative check is to just read the names of the top genes.
+
+```{r top15-table}
+top15 <- de_results %>% slice_head(n = 15) %>%
+  mutate(across(where(is.numeric), ~ signif(.x, 4)))
+kable(top15, caption = "Top 15 candidates by adjusted p-value.")
+```
+
+<div class="alert-info">
+**Interpretation, stated plainly.** Several of the top-ranked genes above — for example `AQP2` (aquaporin-2), `RHCG` (Rhesus family C glycoprotein), `SLC4A9` (an anion exchanger), `ATP6V1C2` (a vacuolar ATPase subunit), and `FOXI1` (a transcription factor) — are well-established, highly specific markers of **renal collecting-duct intercalated cells**, not classical carcinogenesis or tobacco-response genes. We state this as an interpretation, not a confirmed fact about the experiment, because — as established in Module 0 — the exact tissue and design of GSE303967 could not be independently verified from its GEO record. The pattern is nonetheless a useful, concrete illustration of an important principle: **a differential expression signal this broad and this thematically narrow should prompt the question "is this a treatment effect, or a difference in what cell population each group actually contains?"** before it is presented as a biomarker panel. We carry this candidate list forward into Module 3 regardless, exactly as it stands — with this caveat attached, not resolved.
+</div>
+
+# Part 4 — Light Hands-On: Guided Exploration
+
+Every threshold used so far (`p_adj < 0.05`, `|log2FC| > 1`) was a choice, not a law of nature. The point of this section is **not** to teach new statistics — it is to build a feel for how moving those thresholds changes what counts as a "finding," using the two sliders below. They control a live-linked plot and table (built with the `crosstalk` package): drag either slider and both update instantly, entirely in your browser, with no code to re-run.
+
+For readability and file size, this explorer is restricted to the 1,000 genes already ranked most significant in `de_results` — sliding the thresholds below explores *which of these* survive stricter cutoffs, not the full `r nrow(de_results)`-gene universe.
+
+```{r crosstalk-explorer, echo=TRUE}
+# SharedData links the plot and the table below: any filter applied via the
+# sliders is applied to both simultaneously, client-side, in the rendered HTML.
+explorer_data <- de_results %>%
+  slice_head(n = 1000) %>%
+  mutate(neg_log10_padj = -log10(p_adj), abs_log2FC = abs(log2FC))
+
+shared_explorer <- SharedData$new(explorer_data, key = ~gene_symbol, group = "de_explorer")
+```
+
+```{r crosstalk-widget, fig.height=6}
+bscols(
+  widths = c(3, 9),
+  list(
+    filter_slider("fc_threshold", "Minimum |log2 fold-change|",
+                   shared_explorer, ~abs_log2FC, step = 0.1, width = "100%"),
+    filter_slider("padj_threshold", "Maximum adjusted p-value",
+                   shared_explorer, ~p_adj, step = 0.001, width = "100%")
+  ),
+  plot_ly(shared_explorer, x = ~log2FC, y = ~neg_log10_padj, type = "scatter", mode = "markers",
+          text = ~gene_symbol, hoverinfo = "text",
+          marker = list(size = 7, opacity = 0.6, color = "#2980b9")) %>%
+    layout(xaxis = list(title = "log2 fold-change (NNK vs WT)"),
+           yaxis = list(title = "-log10(adjusted p-value)"),
+           title = "Drag the sliders on the left to filter this plot and the table below")
+)
+```
+
+```{r crosstalk-table}
+datatable(
+  shared_explorer,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 8,
+                 columnDefs = list(list(visible = FALSE, targets = c(7, 8)))),
+  rownames = FALSE,
+  caption = "Candidate list filtered live by the sliders above."
+)
+```
+
+<div class="alert-info">
+**What to try, and what to notice.** Push the fold-change slider up while leaving the p-value slider lenient, then do the reverse. Notice that the two thresholds do not always agree on which genes "matter" — a gene can be highly significant with a small effect size (common with large sample sizes) or have a large effect size that just misses significance (common with small, noisy groups). There is no universally correct combination; the right threshold depends on what the candidate list will be used for next (a shortlist for expensive follow-up validation calls for stricter cutoffs than an exploratory hypothesis-generating list).
+</div>
+
+# Part 5 — Closing Pediatric Lens
+
+This entire analysis ran on **`r nrow(sample_metadata)` samples** (`r sum(sample_metadata$group == "NNK")` `NNK`, `r sum(sample_metadata$group == "WT")` `WT`) — and that number is itself the lesson. Real pediatric cancer genomics resources make the same point at a larger, but still comparatively small, scale: the NCI's **TARGET** program (via the GDC Data Portal) exists specifically because pediatric cancers are individually rare, so cohorts large enough to reach adult-cancer-study statistical power essentially do not exist for most pediatric tumor types — they have to be built through dedicated, multi-institution national consortia rather than assembled from any single center.
+
+- **A p-value is not a biomarker.** Especially with a broad significant signal like the one flagged earlier in this module, effect size (`log2FC`) and biological plausibility matter as much as, or more than, the adjusted p-value alone.
+- **Pediatric rare disease and cancer studies are almost always underpowered by adult-oncology standards.** With only `r nrow(sample_metadata)` samples here, and adult cancer cohort studies routinely running into the hundreds or thousands, every statistical test in this module runs on a fraction of the data an equivalent adult study would have — which argues for prioritizing genes with **large, consistent effect sizes** over borderline p-values (exactly what Part 4's sliders let you feel directly), and for treating any single-cohort candidate list as hypothesis-generating rather than diagnostic.
+- **Any candidate list needs independent validation** — an orthogonal cohort, an orthogonal assay (e.g. qPCR, IHC), or both — before it can be called a biomarker in the clinical sense. Statistical significance in an expression comparison is also not the same question as clinical relevance: Module 3 takes the natural next step by asking whether these candidates relate to an actual patient outcome, using survival analysis.
 
 ---
 
@@ -347,15 +510,16 @@ This report covers the following analyses:
 
 | Section | Description |
 |---------|-------------|
-| Gene filtering | Removed low-expressed genes (mean count < 10), reducing the tested gene set and reporting the exact number and percentage removed. |
-| Per-gene testing | Ran a Welch two-sample t-test per gene (NNK vs WT) on log2-transformed counts using `purrr`/`broom`, with BH FDR correction, and flagged the unusually large fraction of significant genes rather than treating it as a straightforward positive result. |
-| Volcano plot | Visualized effect size vs. significance for every tested gene, with explicit significance and effect-size thresholds. |
-| Candidate table | Reported the top 200 candidate biomarkers by adjusted p-value and exported the full result table to `results/differential_expression_results.csv`. |
+| Part 1 — Presenting the dataset | Described GSE303967 and its 45 samples/23 NNK/22 WT groups, and situated it relative to dedicated pediatric cancer genomics resources (TARGET/GDC vs. TCGA) without overclaiming what this specific dataset represents. |
+| Part 2 — Bridge to Module 0 | Compared the real metadata fields available for GSE303967 against the clinical schema built by hand in Module 0, and made explicit which fields (age, sex, collection date, consent) simply do not exist for this dataset. |
+| Part 3 — Guided walkthrough | Filtered low-expressed genes, ran a Welch two-sample t-test per gene (NNK vs WT) on log2-transformed counts using `purrr`/`broom` with BH FDR correction, visualized the result as a volcano plot and a z-scored heatmap of the top 30 candidates, and flagged that several top genes are known renal collecting-duct markers rather than confirmed carcinogenesis genes. |
+| Part 4 — Guided exploration | Built a `crosstalk`-linked slider/plot/table explorer over the top 1,000 candidates, letting fold-change and p-value thresholds be adjusted live to see how the candidate list changes. |
+| Part 5 — Closing pediatric lens | Used this analysis's own sample size (45) as a concrete illustration of pediatric cohort scale, and discussed statistical significance vs. biological relevance under that constraint. |
 
 ### Downloadable Outputs
 
-- **Tables**: the top-candidates table includes CSV / Excel / PDF download buttons.
-- **Plots**: the volcano plot includes a PNG download button via the plotly toolbar.
+- **Tables**: the real-metadata, top-candidates, and live-filtered explorer tables all include CSV / Excel (/ PDF where applicable) download buttons.
+- **Plots**: the volcano plot and heatmap include a PNG download button via the plotly toolbar; the Part 4 explorer plot is interactively filterable by the sliders above it.
 - **Files**: `results/differential_expression_results.csv` (full differential expression results for all tested genes).
 
 ---

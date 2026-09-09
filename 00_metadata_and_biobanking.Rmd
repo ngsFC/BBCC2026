@@ -193,6 +193,259 @@ library(scales)      # axis formatting
 
 This module — **Module 0** — is deliberately the least "computational" and the most conceptual, because in real translational research **the analysis is only as trustworthy as the metadata behind it.** This is especially true in **pediatric rare disease and pediatric oncology**, where cohorts are small by definition, samples are precious and often irreplaceable, and a single mislabeled sample can invalidate months of work. Before touching a single p-value, we need to know: *which sample is which, which samples belong together, and what, exactly, are we comparing?*
 
+**Session plan (≈50 minutes):** why metadata matters (10 min) → what good metadata looks like (10 min) → biobank basics (10 min) → hands-on: build & debug a mini biobank record (20-25 min) → plenary debrief (5 min) → closing pediatric lens (5 min) → applying all of this to the real GSE303967 dataset.
+
+# Part 1 — Why Metadata Matters
+
+> Data organization is not bureaucracy — it is what makes any later analysis trustworthy.
+
+The fastest way to feel this, rather than just be told it, is to watch a perfectly ordinary-looking comparison quietly produce nonsense. Below is a tiny, six-patient toy cohort — the kind of table a well-meaning research assistant might type up in an afternoon — comparing an `age_recorded` value between two groups.
+
+```{r broken-cohort-data, echo=TRUE}
+# A small, intentionally ordinary-looking toy cohort. Nothing here looks
+# obviously wrong at a glance.
+broken_cohort <- tribble(
+  ~patient_id, ~age_recorded, ~sex, ~group,
+  "C-01",      3,             "F",  "Responder",
+  "C-02",      5,             "M",  "Responder",
+  "C-03",      4,             NA,   "Responder",
+  "C-04",      36,            "F",  "Non-responder",
+  "C-05",      24,            NA,   "Non-responder",
+  "C-06",      6,             "M",  "Non-responder"
+)
+```
+
+```{r table-broken-cohort}
+kable(broken_cohort, caption = "A toy six-patient cohort. Nothing here is flagged as an error by R — the values are all valid numbers and strings.")
+```
+
+Now we run the single most ordinary thing anyone would do with this table: compare the two groups.
+
+```{r broken-cohort-analysis, echo=TRUE}
+# A completely standard group comparison — nothing unusual about this code.
+age_comparison <- broken_cohort %>%
+  group_by(group) %>%
+  summarise(mean_age = mean(age_recorded), n = n(), .groups = "drop")
+```
+
+```{r table-broken-comparison}
+kable(age_comparison, caption = "Mean age_recorded by group — computed correctly, from meaningless input.")
+```
+
+<div class="alert-info">
+**The reveal.** `C-04` and `C-05` were recorded in **months** (36 and 24), while every other patient was recorded in **years**. There is no `units` column to warn us, so R has no way to know, and the code above ran without a single warning or error. The result — a "Non-responder" group that looks nearly six times older than the "Responder" group — is not a biological finding. It is a metadata failure wearing the costume of a result. **This is the entire point: R does not know what a number means, only what it is.**
+</div>
+
+A second, quieter failure is sitting in the same table: `sex` is missing for two of the six patients (`C-03`, `C-05`). Watch what happens to a routine sex-stratified summary:
+
+```{r broken-cohort-sex, echo=TRUE}
+# A routine stratified count — filter(!is.na(...)) is such a common, almost
+# invisible habit that it is easy to not notice what it silently discards.
+sex_summary <- broken_cohort %>%
+  filter(!is.na(sex)) %>%
+  count(sex)
+
+cat("Patients in the full cohort:", nrow(broken_cohort), "\n")
+cat("Patients included in the sex-stratified summary:", sum(sex_summary$n), "\n")
+```
+
+<div class="alert-info">
+**The reveal.** One line of ordinary, idiomatic tidyverse code (`filter(!is.na(sex))`) silently dropped **2 of 6 patients — a third of the cohort** — with no warning printed anywhere. In a 500-patient adult study, losing 2 patients to a missing field is a rounding error. In a rare pediatric cohort of 6, 15, or 30 patients, it can be the difference between a result and no result at all — and if it happens silently, nobody even gets the chance to ask why.
+</div>
+
+**Garbage in, garbage out** is usually said as an abstraction. The two examples above are the concrete version: the code was correct in both cases. The *data* is what failed, and nothing in R's normal execution flags that failure for you. That is exactly why metadata organization is a first-class analytical skill, not paperwork that happens before "the real work" begins.
+
+# Part 2 — What Good Metadata Looks Like
+
+## Minimal Fields Every Biological Sample Needs
+
+At a minimum, a usable biobank/sample record needs to answer: *who, what, when, and under what permission.*
+
+| Field | Why it is non-negotiable |
+|-------|---------------------------|
+| **Patient/subject ID** | The single key linking a sample to its clinical context — must be unique, always. |
+| **Sample type** | Tumor tissue, blood, saliva, etc. — determines what analyses are even valid. |
+| **Collection date** | Anchors the sample in time relative to diagnosis, treatment, and the patient's age. |
+| **Diagnosis** | Ideally from a controlled vocabulary, not free text (more on this below). |
+| **Age at collection** | Needed for almost any biological interpretation — and, as Part 1 showed, needs an explicit, consistent unit. |
+| **Consent status** | Whether the sample can legally and ethically be used for research at all — see Part 3. |
+
+## Standards, Briefly
+
+Two ideas are worth knowing exist, without a deep dive here:
+
+- **FAIR principles** — data and metadata should be **F**indable, **A**ccessible, **I**nteroperable, and **R**eusable. In practice, for this tutorial, that mostly means: consistent IDs, documented units, and machine-readable fields rather than prose.
+- **Ontologies**, such as the **Human Phenotype Ontology (HPO)** for clinical phenotypes, give every term a stable, shared identifier (e.g. an HPO code) instead of free text. "Kid kidney tumor" and "pediatric renal neoplasm" are the same thing to a clinician but look like two different diagnoses to a computer — an ontology term fixes that.
+
+## Messy vs. Clean, Side by Side
+
+Here is a miniature, self-contained illustration of the difference structure makes — not the exercise table you will work with shortly, just a quick contrast.
+
+```{r messy-vs-clean, echo=TRUE}
+# A minimal "messy" record: inconsistent casing, a merged free-text field,
+# and a blank standing in for a missing value with no way to tell if that
+# blank means "unknown" or "not applicable".
+messy_example <- tribble(
+  ~ID,  ~"Age/sex",  ~Notes,
+  "s1", "4, girl",   "wilms",
+  "s2", "unknown",   "",
+  "s3", "6 yo M",    "neuroblastoma??"
+)
+
+# The same information, restructured: one field per variable, explicit NA
+# for genuinely missing values, and a controlled diagnosis term.
+clean_example <- tribble(
+  ~patient_id, ~age_years, ~sex, ~diagnosis,
+  "PT-9001",   4,          "F",  "Wilms tumor",
+  "PT-9002",   NA,         NA,   NA,
+  "PT-9003",   6,          "M",  "Neuroblastoma"
+)
+```
+
+```{r table-messy}
+kable(messy_example, caption = "Messy: mixed fields, inconsistent formatting, ambiguous blanks.")
+```
+
+```{r table-clean}
+kable(clean_example, caption = "Clean: one column per variable, explicit NA, standardized terms.")
+```
+
+Nothing was lost going from messy to clean — the *information content* of `s2`/`PT-9002` and `unknown` is identical. What changed is that the clean version can be filtered, joined, counted, and audited by code; the messy version can only be read by a human, one row at a time.
+
+# Part 3 — Biobank Basics
+
+A biobank is, at its core, a system for keeping **three linked things** in sync for every sample, indefinitely:
+
+1. **The physical sample** (tumor tissue, blood, DNA, RNA — stored, tracked, and eventually consumed by analyses like the one in this tutorial).
+2. **The linked clinical/phenotypic data** (diagnosis, treatment, outcome — everything that gives the sample scientific meaning).
+3. **The consent record** (what the donor agreed to, and for how long).
+
+If any one of these three drifts out of sync with the other two — a sample outlives its consent, a clinical update never reaches the biobank record, a sample is used for a purpose broader than what was consented — the biobank has, functionally, failed at its one job, regardless of how well the freezer is organized.
+
+<div class="alert-info">
+**Pediatric consent is not a smaller version of adult consent — it is structurally different.** A child cannot give legally binding consent; a parent or guardian provides it on their behalf, often alongside the child's own **assent** (age-appropriate agreement, even without full legal capacity). Because childhood spans years of rapidly changing capacity to understand and decide, many pediatric biobanks require **re-consent** as the child grows — most concretely, from parental consent toward the now-adult individual's own consent once they reach the age of majority. A sample collected in infancy may need its consent status revisited a decade or more later, which is a governance problem that essentially does not exist in most adult biobanking.
+</div>
+
+# Part 4 — Hands-On: Build & Debug a Mini Biobank Record
+
+**Groups of 3-4, 20-25 minutes.** Below is a working (if slightly expanded — 8 patients rather than 5-6, so every error type below gets a clean row of its own) biobank table for a fictional pediatric cohort. Two records are largely blank and need to be completed from short case notes; the rest are already filled in, but **each of the remaining rows hides exactly one deliberately seeded error** from a real, common biobank data-quality category. Note that patients are identified only by ID, never by name — that is itself a deliberate, realistic biobanking choice, not an oversight.
+
+**Task:** as a group, (1) fill in the two incomplete records using the case notes, and (2) find and propose a fix for the error in each of the other six records. You do not need R for this part — read the table and notes, and write down your answers.
+
+```{r mini-biobank-data, echo=TRUE}
+# The working (messy) mini biobank table for the group exercise.
+# Two rows (PT-2031, PT-2032's *first* appearance) are incomplete on purpose;
+# the other rows each carry exactly one seeded data-quality error.
+mini_biobank_messy <- tribble(
+  ~patient_id, ~date_of_birth, ~age_years, ~sex, ~diagnosis,          ~collection_date, ~sample_type,   ~consent_status,
+  "PT-2031",   "2024-01-03",   NA,         NA,   NA,                  NA,               NA,             NA,
+  "PT-2032",   "2019-11-22",   NA,         NA,   NA,                  NA,               NA,             NA,
+  "PT-2032",   "2016-06-30",   8,          "M",  "Ewing sarcoma",     "2024-09-10",     "Tumor tissue", "Consented",
+  "PT-2033",   "2023-05-14",   18,         "F",  "Retinoblastoma",    "2024-11-02",     "Tumor tissue", "Consented",
+  "PT-2034",   "2020-02-08",   5,          NA,   "Wilms tumor",       "2025-03-01",     "Tumor tissue", "Consented",
+  "PT-2035",   "2022-07-19",   2,          "M",  "Neuroblastoma",     "2021-12-05",     "Tumor tissue", "Consented",
+  "PT-2036",   "2015-09-27",   9,          "F",  "kid kidney tumor",  "2024-10-14",     "Tumor tissue", "Consented",
+  "PT-2037",   "2018-12-01",   6,          "M",  "Osteosarcoma",      "2025-01-20",     "Tumor tissue", NA
+) %>%
+  mutate(date_of_birth = as.Date(date_of_birth), collection_date = as.Date(collection_date))
+```
+
+```{r table-mini-biobank}
+datatable(
+  mini_biobank_messy,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 10),
+  rownames = FALSE,
+  caption = "The mini biobank exercise table — 2 records to complete, 6 records each hiding one error."
+)
+```
+
+## Case Notes (for the two incomplete records)
+
+> **Referral note — record 1 (date of birth 3 January 2024).** Female infant. Presented with a palpable abdominal mass; imaging and biopsy were consistent with neuroblastoma. A tumor tissue sample was biobanked on 20 March 2025, after the parents signed the institutional consent form.
+
+> **Referral note — record 2 (date of birth 22 November 2019).** Male child. Diagnosed with osteosarcoma of the left femur; a tumor biopsy sample was biobanked on 5 June 2024, following parental consent.
+
+**Convention for this exercise:** record age at collection as **completed years** (i.e. round down), computed from date of birth and collection date — not estimated by eye.
+
+## Reveal the Answer Key
+
+Work out your group's answers first. Then expand the section below to compare.
+
+<details>
+<summary><strong>Click to reveal the answer key</strong></summary>
+
+| Record | Category | What was wrong | Fix |
+|--------|----------|-----------------|-----|
+| PT-2031 | Incomplete | Age, sex, diagnosis, collection date, sample type, consent were blank | From the note: age 1 year (2024-01-03 → 2025-03-20), sex F, diagnosis Neuroblastoma, collection date 2025-03-20, sample type Tumor tissue, consent Consented |
+| PT-2032 (1st row) | Incomplete | Same fields blank | From the note: age 4 years (2019-11-22 → 2024-06-05), sex M, diagnosis Osteosarcoma, collection date 2024-06-05, sample type Tumor tissue, consent Consented |
+| PT-2032 (2nd row) | **Duplicate ID** | This is a *different* child (different DOB, sex, diagnosis) filed under the same ID as record 2 | Assign a new, unique ID (e.g. `PT-2038`) — never resolve a duplicate ID by deleting a row without checking which record, if either, is correct |
+| PT-2033 | **Unit inconsistency** | `age_years = 18` — but the gap between DOB and collection date is 538 days (≈17.7 **months**, i.e. ≈1.5 years). Someone entered months into a years field. A diagnosis of retinoblastoma (typically <5 years old) should also have raised suspicion of an 18-year-old. | Correct value: `age_years = 1` (completed years) |
+| PT-2034 | **Missing data** | `sex` is blank | Cannot be inferred from this table — flag for follow-up against the original clinical record. Do **not** guess. |
+| PT-2035 | **Impossible value** | `collection_date` (2021-12-05) is *before* `date_of_birth` (2022-07-19) | Likely a transcription typo (2021 vs. 2024) — given `age_years = 2` and the DOB, the intended date was almost certainly in late 2024. Flag and verify against the source record rather than silently "correcting" the year. |
+| PT-2036 | **Non-standardized terminology** | `diagnosis = "kid kidney tumor"` — free text, not a controlled term | Correct value: `"Wilms tumor"` |
+| PT-2037 | **Missing data** | `consent_status` is blank | Cannot be inferred, and in real biobank governance this is a **stop condition**: the sample must not be used for research until consent is verified — this is not a value to fill in from guesswork. |
+
+</details>
+
+## From Manual Review to Automated Checks
+
+Everything your group just did by eye can — and in a real pipeline, *should* — also be done programmatically, so it runs on every new batch of samples without relying on someone noticing by hand.
+
+```{r automated-checks, echo=TRUE}
+# 1. Duplicate IDs: any patient_id appearing more than once.
+duplicate_ids <- mini_biobank_messy %>% count(patient_id) %>% filter(n > 1)
+
+# 2. Impossible dates: collection before birth.
+impossible_dates <- mini_biobank_messy %>%
+  filter(!is.na(collection_date) & collection_date < date_of_birth)
+
+# 3. Non-standardized diagnoses: anything not in a small controlled vocabulary.
+standard_diagnoses <- c("Neuroblastoma", "Retinoblastoma", "Wilms tumor", "Ewing sarcoma", "Osteosarcoma")
+nonstandard_diagnoses <- mini_biobank_messy %>%
+  filter(!is.na(diagnosis) & !diagnosis %in% standard_diagnoses)
+
+# 4. Implausible ages for a pediatric cohort: a simple sanity bound that also
+#    happens to catch the years/months mix-up, since 18 "years" is implausible
+#    here but 18 months would not have been.
+implausible_ages <- mini_biobank_messy %>% filter(!is.na(age_years) & age_years > 17)
+
+# 5 & 6. Missing sex / consent.
+missing_sex     <- mini_biobank_messy %>% filter(is.na(sex))
+missing_consent <- mini_biobank_messy %>% filter(is.na(consent_status))
+```
+
+```{r verify-automated-checks, echo=TRUE}
+cat("Duplicate patient_id values:", paste(duplicate_ids$patient_id, collapse = ", "), "\n")
+cat("Records with an impossible collection date:", paste(impossible_dates$patient_id, collapse = ", "), "\n")
+cat("Records with a non-standardized diagnosis:", paste(nonstandard_diagnoses$patient_id, collapse = ", "), "\n")
+cat("Records with an implausible age (>17 years):", paste(implausible_ages$patient_id, collapse = ", "), "\n")
+cat("Records with missing sex:", paste(missing_sex$patient_id, collapse = ", "), "\n")
+cat("Records with missing consent status:", paste(missing_consent$patient_id, collapse = ", "), "\n")
+```
+
+Every single seeded error from the answer key above is caught by five short `dplyr` filters — no custom function required. This is the real argument for structured metadata: it is not just easier to *read*, it is checkable **by a machine**, which a free-text spreadsheet never is.
+
+# Part 5 — Plenary Debrief
+
+A few questions worth putting to the room before moving on:
+
+- **Which errors did your group spot fastest, and which took longest?** Duplicate IDs and impossible dates are usually caught almost immediately — they are internally contradictory and need no outside knowledge. Non-standardized terminology (`"kid kidney tumor"`) is typically the slowest, because catching it requires *already knowing* that a standard term exists — which is precisely the problem ontologies like HPO are built to solve.
+- **Which errors could be directly fixed, and which could only be flagged?** The unit error and the terminology error had clear, computable fixes. The missing sex, missing consent, and impossible date did not — the honest fix was "go back to the source record," not "guess a plausible value." Knowing the difference is itself a data-quality skill.
+
+# Part 6 — The Pediatric Lens
+
+Every issue in this module gets sharper, not milder, in a pediatric setting:
+
+- **Consent is layered, not singular.** It is rarely just "the patient's consent" — it is parental/guardian consent, often the child's own age-appropriate assent alongside it, and potentially a re-consent step years later as the child gains legal capacity. None of that has a clean adult-biobanking equivalent.
+- **Age resolution matters far more.** A one-year gap is negligible for a 45-year-old adult but spans enormous developmental change for an infant. Pediatric records often need age at collection in **days or weeks**, not just completed years — which is exactly why, in Part 4, we insisted on computing age from `date_of_birth` and `collection_date` rather than typing a number directly: a date-derived field can always be re-expressed at whatever resolution the analysis needs, while a manually typed "age in years" cannot be un-rounded.
+
+The fields you just built and debugged by hand — `patient_id`, `age`, `sex`, `diagnosis`, `collection_date`, `consent_status` — are not a teaching artifact. They are the same fields, with the same failure modes, that show up next in a real, public dataset.
+
+# Applying This to a Real Dataset
+
+We now turn to `data/GSE303967_normalized_counts_All_Samples.csv`, a real, public count matrix — and immediately run into a very familiar problem: **it comes with almost no metadata at all**, just column headers. Everything from Parts 1-3 about *why* that is a problem, and everything from Part 4 about *how* to check for damage systematically, applies directly.
+
 # Loading the Raw Count Matrix
 
 The starting point of almost every genomics analysis is a **count matrix**: rows are genes, columns are samples, and cells hold expression values. Here we work with `r "data/GSE303967_normalized_counts_All_Samples.csv"`, downloaded from the public GEO series **GSE303967**. Note that we could not independently confirm the full experimental design (tissue, exact NNK exposure protocol) from the GEO record at the time of writing — this is flagged explicitly rather than assumed, in line with the rule that nothing is stated as fact unless it has been verified from the data or the source itself.
@@ -361,6 +614,11 @@ This report covers the following analyses:
 
 | Section | Description |
 |---------|-------------|
+| Part 1 — Why metadata matters | Demonstrated, with a toy cohort, how an undocumented unit inconsistency and a silently-dropped missing field each produce a confidently wrong result without any error or warning. |
+| Part 2 — What good metadata looks like | Listed the minimal required fields for a biological sample record, introduced FAIR principles and ontologies (e.g. HPO) at a high level, and contrasted a messy vs. a clean toy record. |
+| Part 3 — Biobank basics | Described the three linked components of a biobank record (sample, clinical data, consent) and pediatric-specific consent/assent/re-consent considerations. |
+| Part 4 — Hands-on exercise | Built and debugged an 8-record fictional pediatric mini biobank table (2 incomplete records, 6 seeded errors — duplicate ID, unit inconsistency, missing sex, impossible date, non-standardized diagnosis, missing consent), then reproduced every finding with automated `dplyr` checks. |
+| Parts 5-6 — Debrief and pediatric lens | Discussed which errors were easiest/hardest to catch and fixable vs. flag-only, then connected every issue to pediatric-specific consent and age-resolution considerations. |
 | Loading the raw count matrix | Loaded the GSE303967 count matrix and verified its dimensions, gene-symbol uniqueness, absence of missing values, and species (human, from HGNC-style nomenclature); flagged that the "normalized_counts" file actually contains integer values. |
 | Building a sample sheet | Parsed `NNK`/`WT` group and numeric ID directly from column names into a structured, auditable metadata table. |
 | Traceability check | Verified which samples form matched NNK/WT pairs and explicitly flagged the 5 samples with no matched partner. |
@@ -368,7 +626,7 @@ This report covers the following analyses:
 
 ### Downloadable Outputs
 
-- **Tables**: the sample metadata and pairing-check tables include CSV / Excel / PDF download buttons.
+- **Tables**: the toy cohort, messy/clean illustration, mini biobank exercise table, sample metadata, and pairing-check tables all include CSV / Excel / PDF download buttons (where rendered via `DT::datatable()`).
 - **Files**: `data/sample_metadata.csv` (reusable metadata table for subsequent modules).
 
 ---

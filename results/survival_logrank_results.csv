@@ -1,0 +1,13 @@
+combo_id,gene,threshold_label,n_samples,logrank_p
+RP11-690G19.4 — Median split (50/50),RP11-690G19.4,Median split (50/50),45,0.012481131807634214
+"RP11-690G19.4 — Tertile split (33/33, middle excluded)",RP11-690G19.4,"Tertile split (33/33, middle excluded)",33,0.009424296663686839
+"RP11-690G19.4 — Quartile split (25/25, middle excluded)",RP11-690G19.4,"Quartile split (25/25, middle excluded)",25,0.009270663614607103
+TCTN1 — Median split (50/50),TCTN1,Median split (50/50),45,0.9638281304758227
+"TCTN1 — Tertile split (33/33, middle excluded)",TCTN1,"Tertile split (33/33, middle excluded)",30,0.8683493336268574
+"TCTN1 — Quartile split (25/25, middle excluded)",TCTN1,"Quartile split (25/25, middle excluded)",24,0.19956846885357737
+DDX49 — Median split (50/50),DDX49,Median split (50/50),45,0.5339292066060473
+"DDX49 — Tertile split (33/33, middle excluded)",DDX49,"Tertile split (33/33, middle excluded)",30,0.5983835347072073
+"DDX49 — Quartile split (25/25, middle excluded)",DDX49,"Quartile split (25/25, middle excluded)",24,0.6121854329289395
+STRIP2 — Median split (50/50),STRIP2,Median split (50/50),45,0.4424584968290447
+"STRIP2 — Tertile split (33/33, middle excluded)",STRIP2,"Tertile split (33/33, middle excluded)",30,0.027139943960934255
+"STRIP2 — Quartile split (25/25, middle excluded)",STRIP2,"Quartile split (25/25, middle excluded)",24,0.16029628918381303
