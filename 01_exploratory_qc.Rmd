@@ -1,0 +1,388 @@
+---
+title: "Module 1 — Exploratory Analysis and Quality Control"
+subtitle: "BBCC2026 Tutorial: Do the Samples Look the Way We Expect Before We Test Anything?"
+author: |
+  **Francesco Cecere**
+  *Senior Bioinformatic Researcher*
+  AORN Santobono-Pausilipon
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 3
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    fig_width: 10
+    fig_height: 6
+---
+
+<style>
+body { font-size: 15px; }
+
+h1 {
+  border-bottom: 3px solid #2980b9;
+  padding-bottom: 8px;
+  color: #1a252f;
+  margin-top: 32px;
+}
+h2 {
+  border-bottom: 1px solid #aed6f1;
+  padding-bottom: 4px;
+  color: #2471a3;
+  margin-top: 22px;
+}
+h3 { color: #1f618d; }
+
+blockquote {
+  background-color: #eaf4fd;
+  border-left: 5px solid #2980b9;
+  padding: 14px 20px;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+  color: #2c3e50;
+  margin: 18px 0;
+}
+blockquote p { margin: 0; }
+
+.value-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0 32px 0;
+}
+.vbox {
+  background-color: #2980b9;
+  background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%);
+  color: #ffffff !important;
+  border-radius: 10px;
+  padding: 20px 28px;
+  min-width: 150px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  flex: 1;
+  transition: transform 0.2s;
+}
+.vbox:hover { transform: translateY(-3px); }
+.vbox.green  { background-color: #27ae60; background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%); }
+.vbox.red    { background-color: #e74c3c; background: linear-gradient(135deg, #e74c3c 0%, #a93226 100%); }
+.vbox.purple { background-color: #8e44ad; background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%); }
+.vbox .vbox-number, .vbox-number {
+  font-size: 2.6em; font-weight: 700; line-height: 1.1; color: #ffffff !important;
+}
+.vbox .vbox-label, .vbox-label {
+  font-size: 0.82em; margin-top: 5px; opacity: 0.92; letter-spacing: 0.02em; color: #ffffff !important;
+}
+
+.alert-sig {
+  background: #d5f5e3;
+  border-left: 5px solid #27ae60;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+.alert-notsig {
+  background: #fdf2f8;
+  border-left: 5px solid #a569bd;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+.alert-info {
+  background: #fef9e7;
+  border-left: 5px solid #f39c12;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+
+.dataTables_wrapper { margin: 10px 0 24px 0; font-size: 0.93em; }
+table.dataTable thead th {
+  background-color: #2980b9 !important;
+  color: white !important;
+}
+.dt-buttons .btn { font-size: 0.82em; padding: 3px 10px; }
+
+.report-footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #ccc;
+  font-size: 0.85em;
+  color: #777;
+  text-align: center;
+}
+
+.tocify {
+  background-color: #1a252f !important;
+  border: none !important;
+  border-radius: 8px;
+  padding: 6px 0;
+}
+.tocify .tocify-item > a {
+  color: #bdc3c7 !important;
+  padding: 6px 14px;
+  font-size: 0.88em;
+  border-radius: 4px;
+  transition: background 0.18s, color 0.18s;
+  text-decoration: none;
+}
+.tocify .tocify-item > a:hover {
+  background-color: #2c3e50 !important;
+  color: #ffffff !important;
+}
+.tocify .tocify-item.active > a {
+  background-color: #2980b9 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 4px;
+}
+.tocify-subheader {
+  background-color: #1a252f !important;
+}
+.tocify-subheader .tocify-item > a {
+  padding-left: 26px !important;
+  font-size: 0.82em !important;
+  color: #7f8c8d !important;
+}
+.tocify-subheader .tocify-item.active > a {
+  background-color: #21618c !important;
+  color: #ecf0f1 !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo      = FALSE,
+  warning   = FALSE,
+  message   = FALSE,
+  fig.align = "center",
+  dpi       = 96
+)
+```
+
+```{r libraries, include=FALSE}
+library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
+library(plotly)      # interactive plots
+library(DT)          # interactive downloadable tables
+library(knitr)       # kable for simple inline tables
+library(scales)      # axis formatting
+```
+
+# From Module 0
+
+Module 0 turned the raw column names of `GSE303967_normalized_counts_All_Samples.csv` into a verified, structured sample sheet (`data/sample_metadata.csv`): 45 samples, 23 `NNK` and 22 `WT`, mostly matched in pairs by a shared numeric ID, with 5 samples lacking a matched partner. Before we compare groups statistically in Module 2, this module asks a more basic question: **do the samples themselves look trustworthy?** Quality control is not a formality — an unnoticed outlier sample, batch effect, or mislabeled group can produce a "biomarker" that is really just a technical artifact.
+
+```{r load-data, echo=TRUE}
+# Load the count matrix and the verified metadata table produced in Module 0.
+counts_raw <- read_csv(
+  "data/GSE303967_normalized_counts_All_Samples.csv",
+  show_col_types = FALSE
+) %>%
+  rename(gene_symbol = 1)
+
+sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
+```
+
+```{r verify-join, echo=TRUE}
+# Reshape to long format (one row per gene x sample) and join in the metadata.
+# We verify row counts before and after the join to make sure no sample was
+# silently dropped or duplicated.
+n_genes   <- nrow(counts_raw)
+n_samples <- ncol(counts_raw) - 1
+
+counts_long <- counts_raw %>%
+  pivot_longer(-gene_symbol, names_to = "sample_id", values_to = "count") %>%
+  left_join(sample_metadata, by = "sample_id")
+
+expected_rows <- n_genes * n_samples
+cat("Expected rows after reshape (genes x samples):", expected_rows, "\n")
+cat("Actual rows after reshape:", nrow(counts_long), "\n")
+cat("Rows with no matching metadata after join (should be 0):",
+    sum(is.na(counts_long$group)), "\n")
+```
+
+# Library Sizes per Sample
+
+The **library size** (total counts summed across all genes) reflects sequencing depth and, indirectly, RNA input quality. Large, systematic differences in library size between groups can bias downstream comparisons even after normalization, so we inspect it first.
+
+```{r library-sizes, echo=TRUE}
+# Sum counts across all genes for each sample to get its library size.
+library_sizes <- counts_long %>%
+  group_by(sample_id, group) %>%
+  summarise(total_counts = sum(count), .groups = "drop") %>%
+  arrange(total_counts)
+```
+
+```{r plot-library-sizes, fig.height=7}
+# Order samples by library size for a readable bar chart, colored by group.
+p_libsize <- library_sizes %>%
+  mutate(sample_id = fct_reorder(sample_id, total_counts)) %>%
+  ggplot(aes(x = sample_id, y = total_counts, fill = group)) +
+  geom_col() +
+  coord_flip() +
+  scale_y_continuous(labels = label_comma()) +
+  scale_fill_manual(values = c(NNK = "#2980b9", WT = "#8e44ad")) +
+  labs(x = NULL, y = "Total counts (library size)",
+       title = "Library size per sample") +
+  theme_minimal(base_size = 11)
+
+ggplotly(p_libsize)
+```
+
+# Distribution of Expression per Sample
+
+We next check whether the overall distribution of expression values is comparable across samples. Values are log2(count + 1) transformed for this comparison, which compresses the wide dynamic range typical of expression data and is standard practice before visual QC.
+
+```{r plot-log-distribution, echo=TRUE, fig.height=7}
+# log2-transform (adding 1 to avoid log(0)) and draw one boxplot per sample.
+p_boxplot <- counts_long %>%
+  mutate(log2_count = log2(count + 1)) %>%
+  ggplot(aes(x = fct_reorder(sample_id, log2_count, .fun = median), y = log2_count, fill = group)) +
+  geom_boxplot(outlier.size = 0.4, outlier.alpha = 0.3) +
+  coord_flip() +
+  scale_fill_manual(values = c(NNK = "#2980b9", WT = "#8e44ad")) +
+  labs(x = NULL, y = "log2(count + 1)",
+       title = "Per-sample expression distribution") +
+  theme_minimal(base_size = 11)
+
+ggplotly(p_boxplot)
+```
+
+# Principal Component Analysis
+
+PCA summarizes genome-wide variation into a small number of orthogonal axes. If `NNK` and `WT` samples separate cleanly along the top components, group is a major driver of overall transcriptional variation; if they do not, group differences (if any) are more subtle than other sources of variability (batch, individual variation, etc.).
+
+```{r filter-and-pca, echo=TRUE}
+# Filter out very low-expressed genes before PCA: near-constant, low-count
+# genes contribute mostly noise to variance-based methods like PCA.
+gene_mean_expr <- counts_long %>%
+  group_by(gene_symbol) %>%
+  summarise(mean_count = mean(count), .groups = "drop")
+
+n_genes_before_filter <- nrow(gene_mean_expr)
+genes_to_keep <- gene_mean_expr %>% filter(mean_count >= 10) %>% pull(gene_symbol)
+n_genes_after_filter <- length(genes_to_keep)
+
+cat("Genes before expression filter:", n_genes_before_filter, "\n")
+cat("Genes after filter (mean count >= 10):", n_genes_after_filter,
+    sprintf("(%.1f%% retained)", 100 * n_genes_after_filter / n_genes_before_filter), "\n")
+
+# Build a genes x samples matrix of log2-transformed, filtered counts for PCA.
+expr_matrix_wide <- counts_long %>%
+  filter(gene_symbol %in% genes_to_keep) %>%
+  mutate(log2_count = log2(count + 1)) %>%
+  select(gene_symbol, sample_id, log2_count) %>%
+  pivot_wider(names_from = sample_id, values_from = log2_count)
+
+expr_matrix <- as.matrix(expr_matrix_wide[, -1])
+rownames(expr_matrix) <- expr_matrix_wide$gene_symbol
+
+# PCA is computed on samples (rows = samples), hence the transpose.
+pca_result <- prcomp(t(expr_matrix), scale. = FALSE)
+
+pca_scores <- as_tibble(pca_result$x, rownames = "sample_id") %>%
+  left_join(sample_metadata, by = "sample_id")
+
+variance_explained <- tibble(
+  PC = paste0("PC", seq_along(pca_result$sdev)),
+  variance_explained_pct = round(100 * pca_result$sdev^2 / sum(pca_result$sdev^2), 2)
+)
+```
+
+```{r verify-pca, echo=TRUE}
+# Sanity check: variance explained should sum to (approximately) 100%.
+cat("Sum of variance explained across all PCs:",
+    round(sum(variance_explained$variance_explained_pct), 2), "%\n")
+cat("Variance explained by PC1-PC5:\n")
+print(head(variance_explained, 5))
+```
+
+```{r table-variance-explained}
+datatable(
+  head(variance_explained, 10),
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 10),
+  rownames = FALSE,
+  caption = "Percentage of variance explained by the top 10 principal components."
+)
+```
+
+```{r plot-pca}
+p_pca <- pca_scores %>%
+  ggplot(aes(x = PC1, y = PC2, color = group, text = sample_id)) +
+  geom_point(size = 2.5, alpha = 0.85) +
+  scale_color_manual(values = c(NNK = "#2980b9", WT = "#8e44ad")) +
+  labs(
+    x = paste0("PC1 (", variance_explained$variance_explained_pct[1], "%)"),
+    y = paste0("PC2 (", variance_explained$variance_explained_pct[2], "%)"),
+    title = "PCA of samples on filtered, log2-transformed expression"
+  ) +
+  theme_minimal(base_size = 11)
+
+ggplotly(p_pca, tooltip = c("text", "colour"))
+```
+
+# Sample-Sample Correlation
+
+As a second, complementary view of sample structure, we compute pairwise Pearson correlations between all samples on the same filtered, log2-transformed matrix. Samples from the same group are expected to correlate more strongly with each other than with samples from the other group; a sample that correlates poorly with everyone (including its own group) is a candidate outlier worth flagging.
+
+```{r correlation-heatmap, echo=TRUE, fig.height=9}
+# Compute the full sample-by-sample correlation matrix.
+sample_cor_matrix <- cor(expr_matrix, method = "pearson")
+
+# Reshape to long format for ggplot's geom_tile, ordering samples by group so
+# block structure (if present) is visually apparent.
+sample_order <- sample_metadata %>% arrange(group, sample_id) %>% pull(sample_id)
+
+sample_cor_long <- as_tibble(sample_cor_matrix, rownames = "sample_a") %>%
+  pivot_longer(-sample_a, names_to = "sample_b", values_to = "correlation") %>%
+  mutate(
+    sample_a = factor(sample_a, levels = sample_order),
+    sample_b = factor(sample_b, levels = sample_order)
+  )
+
+p_corr <- sample_cor_long %>%
+  ggplot(aes(x = sample_a, y = sample_b, fill = correlation)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#e74c3c", mid = "white", high = "#2980b9", midpoint = 0.9) +
+  labs(x = NULL, y = NULL, title = "Pairwise sample correlation (Pearson, log2 scale)") +
+  theme_minimal(base_size = 8) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6),
+        axis.text.y = element_text(size = 6))
+
+ggplotly(p_corr)
+```
+
+# Why QC Is Non-Negotiable in Pediatric Data
+
+- **Small n means every sample carries weight.** In a rare pediatric tumor cohort of, say, 15–20 patients, one undetected outlier sample (degraded RNA, contamination, mislabeling) can visibly shift a PCA plot and materially change a differential expression result — the same outlier would be statistically invisible in a 500-sample adult cohort.
+- **Batch effects are a constant threat in multi-site pediatric consortia.** Rare disease and pediatric cancer studies frequently pool samples across hospitals and sequencing runs out of necessity, since no single center sees enough cases alone. PCA and correlation heatmaps are the first line of defense for spotting a batch masquerading as a biological signal.
+- **QC decisions must be documented, not silently applied.** Removing an "outlier" sample changes the very small denominator a pediatric study is built on — any exclusion should be justified explicitly in the methods, exactly as the filtering and matching decisions were logged in Module 0 and this module.
+
+---
+
+## Summary
+
+This report covers the following analyses:
+
+| Section | Description |
+|---------|-------------|
+| Data loading and join verification | Reloaded the count matrix and Module 0 metadata, confirmed the reshape produced the expected number of rows with no unmatched samples. |
+| Library sizes | Computed and visualized total counts per sample to check for systematic sequencing-depth differences between groups. |
+| Expression distributions | Compared log2(count+1) distributions across samples via boxplots to spot outliers. |
+| PCA | Filtered low-expressed genes, ran PCA on log2-transformed data, and visualized sample separation by group with variance-explained reported per component. |
+| Sample-sample correlation | Computed and visualized the full pairwise Pearson correlation matrix to identify potential outlier samples. |
+
+### Downloadable Outputs
+
+- **Tables**: the variance-explained table includes CSV / Excel / PDF download buttons.
+- **Plots**: all interactive plots (library size, expression distribution, PCA, correlation heatmap) include a PNG download button via the plotly toolbar.
+
+---
+
+<div class="report-footer">
+Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere · Senior Bioinformatic Researcher · AORN Santobono-Pausilipon
+</div>

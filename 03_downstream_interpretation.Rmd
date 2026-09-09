@@ -1,0 +1,345 @@
+---
+title: "Module 3 — Downstream Interpretation and Clinical Relevance"
+subtitle: "BBCC2026 Tutorial: From a Candidate List to a Clinically Framed Conclusion"
+author: |
+  **Francesco Cecere**
+  *Senior Bioinformatic Researcher*
+  AORN Santobono-Pausilipon
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 3
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    fig_width: 10
+    fig_height: 6
+---
+
+<style>
+body { font-size: 15px; }
+
+h1 {
+  border-bottom: 3px solid #2980b9;
+  padding-bottom: 8px;
+  color: #1a252f;
+  margin-top: 32px;
+}
+h2 {
+  border-bottom: 1px solid #aed6f1;
+  padding-bottom: 4px;
+  color: #2471a3;
+  margin-top: 22px;
+}
+h3 { color: #1f618d; }
+
+blockquote {
+  background-color: #eaf4fd;
+  border-left: 5px solid #2980b9;
+  padding: 14px 20px;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+  color: #2c3e50;
+  margin: 18px 0;
+}
+blockquote p { margin: 0; }
+
+.value-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0 32px 0;
+}
+.vbox {
+  background-color: #2980b9;
+  background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%);
+  color: #ffffff !important;
+  border-radius: 10px;
+  padding: 20px 28px;
+  min-width: 150px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  flex: 1;
+  transition: transform 0.2s;
+}
+.vbox:hover { transform: translateY(-3px); }
+.vbox.green  { background-color: #27ae60; background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%); }
+.vbox.red    { background-color: #e74c3c; background: linear-gradient(135deg, #e74c3c 0%, #a93226 100%); }
+.vbox.purple { background-color: #8e44ad; background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%); }
+.vbox .vbox-number, .vbox-number {
+  font-size: 2.6em; font-weight: 700; line-height: 1.1; color: #ffffff !important;
+}
+.vbox .vbox-label, .vbox-label {
+  font-size: 0.82em; margin-top: 5px; opacity: 0.92; letter-spacing: 0.02em; color: #ffffff !important;
+}
+
+.alert-sig {
+  background: #d5f5e3;
+  border-left: 5px solid #27ae60;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+.alert-notsig {
+  background: #fdf2f8;
+  border-left: 5px solid #a569bd;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+.alert-info {
+  background: #fef9e7;
+  border-left: 5px solid #f39c12;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+
+.dataTables_wrapper { margin: 10px 0 24px 0; font-size: 0.93em; }
+table.dataTable thead th {
+  background-color: #2980b9 !important;
+  color: white !important;
+}
+.dt-buttons .btn { font-size: 0.82em; padding: 3px 10px; }
+
+.report-footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #ccc;
+  font-size: 0.85em;
+  color: #777;
+  text-align: center;
+}
+
+.tocify {
+  background-color: #1a252f !important;
+  border: none !important;
+  border-radius: 8px;
+  padding: 6px 0;
+}
+.tocify .tocify-item > a {
+  color: #bdc3c7 !important;
+  padding: 6px 14px;
+  font-size: 0.88em;
+  border-radius: 4px;
+  transition: background 0.18s, color 0.18s;
+  text-decoration: none;
+}
+.tocify .tocify-item > a:hover {
+  background-color: #2c3e50 !important;
+  color: #ffffff !important;
+}
+.tocify .tocify-item.active > a {
+  background-color: #2980b9 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 4px;
+}
+.tocify-subheader {
+  background-color: #1a252f !important;
+}
+.tocify-subheader .tocify-item > a {
+  padding-left: 26px !important;
+  font-size: 0.82em !important;
+  color: #7f8c8d !important;
+}
+.tocify-subheader .tocify-item.active > a {
+  background-color: #21618c !important;
+  color: #ecf0f1 !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo      = FALSE,
+  warning   = FALSE,
+  message   = FALSE,
+  fig.align = "center",
+  dpi       = 96
+)
+```
+
+```{r libraries, include=FALSE}
+library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
+library(plotly)      # interactive plots
+library(DT)          # interactive downloadable tables
+library(knitr)       # kable for simple inline tables
+library(scales)      # axis formatting
+```
+
+# From Module 2
+
+Module 2 produced a genome-wide, ranked list of candidate biomarkers (`results/differential_expression_results.csv`) and explicitly flagged that an unusually large fraction of tested genes reached statistical significance — a pattern that deserves scrutiny before being interpreted as a clean biological signal. This module takes the next, and arguably most important, step in any translational workflow: **asking whether the candidate list means anything biologically**, and being honest about the limits of what a single-cohort analysis like this one can claim.
+
+```{r load-results, echo=TRUE}
+# Reload the full differential expression results produced in Module 2.
+de_results <- read_csv("results/differential_expression_results.csv", show_col_types = FALSE)
+cat("Differential expression results loaded:", nrow(de_results), "genes tested.\n")
+
+top_candidates <- de_results %>% filter(p_adj < 0.05)
+cat("Candidates significant at p_adj < 0.05:", nrow(top_candidates), "\n")
+```
+
+# What Are the Top Candidates, Biologically?
+
+Before applying any formal gene-set test, the simplest and most informative check is to just read the names of the top genes. We display the top 15 by adjusted p-value again here for direct inspection.
+
+```{r top15-table}
+top15 <- de_results %>% slice_head(n = 15) %>%
+  mutate(across(where(is.numeric), ~ signif(.x, 4)))
+
+kable(top15, caption = "Top 15 candidates by adjusted p-value.")
+```
+
+<div class="alert-info">
+**Interpretation, stated plainly.** Several of the top-ranked genes above — for example `AQP2` (aquaporin-2), `RHCG` (Rhesus family C glycoprotein), `SLC4A9` (an anion exchanger), `ATP6V1C2` (a vacuolar ATPase subunit), and `FOXI1` (a transcription factor) — are well-established, highly specific markers of **renal collecting-duct intercalated cells**, not classical carcinogenesis or tobacco-response genes. We state this as an interpretation rather than a confirmed fact about the experiment, because — as noted in Module 0 — the exact tissue and experimental design of GSE303967 could not be independently verified. The pattern is nonetheless a useful, concrete illustration of an important principle: **a differential expression signal this broad and this thematically narrow should prompt the question "is this a treatment effect, or a difference in what cell population each group actually contains?"** before it is presented as a biomarker panel.
+</div>
+
+# Curated Pediatric-Cancer Gene Set
+
+To ground the interpretation in pediatric oncology specifically, we define a small, literature-established set of genes with recurrent, well-documented roles across pediatric cancers: `MYCN` and `ALK` (neuroblastoma), `RB1` (retinoblastoma), `WT1` (Wilms tumor), `EWSR1` and `FLI1` (Ewing sarcoma), `PAX3` (rhabdomyosarcoma), and broadly acting tumor suppressors/oncogenes `TP53`, `PTEN`, `NF1`, `EGFR`, and `KRAS`. This list is intentionally small and specific rather than a large generic cancer gene panel, so that any overlap found is meaningful and easy to reason about by hand.
+
+```{r define-gene-set, echo=TRUE}
+pediatric_cancer_genes <- tibble(
+  gene_symbol = c("MYCN", "ALK", "TP53", "RB1", "PTEN", "EGFR",
+                  "KRAS", "NF1", "WT1", "PAX3", "EWSR1", "FLI1"),
+  associated_pediatric_cancer = c(
+    "Neuroblastoma", "Neuroblastoma", "Multiple (Li-Fraumeni spectrum)",
+    "Retinoblastoma", "Multiple (PTEN hamartoma spectrum)", "Multiple",
+    "Multiple (RAS pathway)", "Neurofibromatosis-associated tumors",
+    "Wilms tumor", "Rhabdomyosarcoma", "Ewing sarcoma", "Ewing sarcoma"
+  )
+)
+```
+
+```{r verify-gene-set, echo=TRUE}
+# Verify which curated genes are even present in the tested universe: a gene
+# absent from the universe cannot be found "significant" or "not significant"
+# — it was simply never testable in this dataset.
+gene_set_check <- pediatric_cancer_genes %>%
+  mutate(present_in_tested_universe = gene_symbol %in% de_results$gene_symbol)
+
+n_present <- sum(gene_set_check$present_in_tested_universe)
+cat("Curated genes present in the tested universe:", n_present,
+    "out of", nrow(gene_set_check), "\n")
+```
+
+```{r table-gene-set}
+kable(gene_set_check, caption = "Curated pediatric-cancer gene set and their presence in the tested universe.")
+```
+
+# Overlap With Significant Candidates
+
+```{r compute-overlap, echo=TRUE}
+# Restrict the curated list to genes that were actually testable, then check
+# how many of those are among the significant candidates from Module 2.
+testable_gene_set <- gene_set_check %>% filter(present_in_tested_universe) %>% pull(gene_symbol)
+
+overlap_results <- de_results %>%
+  filter(gene_symbol %in% testable_gene_set) %>%
+  mutate(across(where(is.numeric), ~ signif(.x, 4))) %>%
+  arrange(p_adj)
+
+n_overlap_significant <- sum(overlap_results$p_adj < 0.05)
+```
+
+```{r table-overlap}
+datatable(
+  overlap_results,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 15),
+  rownames = FALSE,
+  caption = "Differential expression statistics for the curated pediatric-cancer gene set."
+)
+```
+
+# Is the Overlap More Than We'd Expect by Chance?
+
+A raw overlap count is not enough — with `r sum(de_results$p_adj < 0.05)` genes already significant out of `r nrow(de_results)` tested (a very large fraction), some overlap with almost any gene set would be expected purely by chance. We test this formally with a **hypergeometric test**, using base R's `phyper()` — no additional package is needed for this calculation.
+
+```{r hypergeometric-test, echo=TRUE}
+# Hypergeometric test setup:
+#   universe_n = total genes tested
+#   list_n     = size of the curated gene set (restricted to testable genes)
+#   sig_n      = number of genes significant at p_adj < 0.05 (the "draw")
+#   hits_n     = curated genes that are also significant (the "successes drawn")
+universe_n <- nrow(de_results)
+list_n     <- length(testable_gene_set)
+sig_n      <- sum(de_results$p_adj < 0.05)
+hits_n     <- n_overlap_significant
+
+# P(X >= hits_n) using the upper tail of the hypergeometric distribution.
+enrichment_p_value <- phyper(
+  q = hits_n - 1,
+  m = list_n,
+  n = universe_n - list_n,
+  k = sig_n,
+  lower.tail = FALSE
+)
+```
+
+```{r verify-enrichment, echo=TRUE}
+cat("Genes tested (universe):", universe_n, "\n")
+cat("Curated pediatric-cancer genes testable:", list_n, "\n")
+cat("Genes significant at p_adj < 0.05:", sig_n, "\n")
+cat("Curated genes that are also significant:", hits_n, "\n")
+cat("Hypergeometric enrichment p-value:", signif(enrichment_p_value, 4), "\n")
+```
+
+<div class="`r if (enrichment_p_value < 0.05) 'alert-sig' else 'alert-notsig'`">
+**Result, stated honestly.** With `r hits_n` of `r list_n` curated genes among the `r sig_n` significant candidates (out of `r universe_n` tested), the hypergeometric enrichment p-value is **`r signif(enrichment_p_value, 4)`**. `r if (enrichment_p_value < 0.05) "This is below the conventional 0.05 threshold, but given how large the overall significant fraction is in this dataset, this result should still be treated cautiously rather than as strong confirmation." else "This is not below the conventional 0.05 threshold: the overlap with this specific curated pediatric-cancer gene set is not more than would be expected given how many genes are significant overall in this comparison."` This is reported as computed, without adjusting the narrative to make the finding sound stronger or weaker than the number itself supports.
+</div>
+
+```{r export-overlap, echo=TRUE}
+dir.create("results", showWarnings = FALSE)
+write_csv(overlap_results, "results/pediatric_gene_set_overlap.csv")
+cat("results/pediatric_gene_set_overlap.csv written with", nrow(overlap_results), "rows.\n")
+```
+
+# From Candidate List to Clinical Meaning
+
+This is the step where a bioinformatics result either becomes clinically useful or stays a spreadsheet. Three things are true at once, and pediatric rare disease and cancer research has to hold all three simultaneously:
+
+- **A single-cohort candidate list is a hypothesis, not a diagnosis.** Everything computed across these four modules — filtering thresholds, an unpaired test forced by incomplete sample matching, a curated gene set chosen by us rather than derived independently — involved judgment calls that would need to be reproduced, or at least stress-tested, in an independent cohort before any gene here could support a clinical claim.
+- **Unexpected findings (like the collecting-duct-marker pattern above) are often more useful than expected ones.** In pediatric rare disease work, where every cohort is small and unique, an analyst who notices "this doesn't look like what we expected" is often catching a sample-composition or protocol issue that would otherwise silently propagate into a paper or a clinical report.
+- **The pediatric context changes the bar for evidence, not the rigor required to meet it.** Because independent replication cohorts are often unavailable for rare pediatric tumors, extra weight has to be placed on orthogonal evidence within the same study (histology, known pathway biology, functional assays) — and on being transparent about uncertainty, exactly as flagged throughout this tutorial, rather than overstating confidence to compensate for small numbers.
+
+# Tutorial Wrap-Up
+
+Across the four modules, this tutorial followed one dataset from a folder containing a single CSV file to an interpreted, caveated candidate biomarker list:
+
+1. **Module 0** turned unstructured file names into a verified, biobank-style sample sheet, and surfaced how much of "the data" was actually missing metadata that had to be reconstructed.
+2. **Module 1** used QC (library size, distributions, PCA, correlation) to check whether the samples were trustworthy before any statistical comparison was attempted.
+3. **Module 2** ran a transparent, gene-by-gene statistical comparison, produced a ranked candidate list, and flagged an unusually broad significant signal rather than presenting it uncritically.
+4. **Module 3** confronted that signal biologically, tested a specific hypothesis about pediatric cancer relevance with a formal statistical test, and reported the result — whichever direction it pointed — without adjusting the conclusion to fit expectations.
+
+The throughline connecting every module back to pediatric rare disease and cancer biology is the same: **small cohorts, precious samples, and high clinical stakes leave no room for skipped verification steps** — which is exactly why every chunk in this tutorial checked its own inputs and outputs rather than assuming they were correct.
+
+---
+
+## Summary
+
+This report covers the following analyses:
+
+| Section | Description |
+|---------|-------------|
+| Top-candidate inspection | Read the top differentially expressed genes directly and flagged that several are specific markers of renal collecting-duct cells rather than generic carcinogenesis genes. |
+| Curated gene set definition | Defined a small, literature-based set of genes recurrently implicated in pediatric cancers and verified which were present in the tested universe. |
+| Overlap analysis | Extracted differential expression statistics for the curated gene set and identified which curated genes were also statistically significant. |
+| Enrichment testing | Ran a hypergeometric test (`phyper()`) to formally assess whether the overlap exceeds chance expectation, reporting the exact p-value obtained. |
+| Clinical framing | Discussed the limits of a single-cohort candidate list and what would be required to move from candidate to clinically meaningful biomarker in a pediatric setting. |
+
+### Downloadable Outputs
+
+- **Tables**: the curated gene set overlap table includes CSV / Excel / PDF download buttons.
+- **Files**: `results/pediatric_gene_set_overlap.csv` (differential expression statistics restricted to the curated pediatric-cancer gene set).
+
+---
+
+<div class="report-footer">
+Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere · Senior Bioinformatic Researcher · AORN Santobono-Pausilipon
+</div>

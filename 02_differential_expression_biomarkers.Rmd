@@ -1,0 +1,365 @@
+---
+title: "Module 2 — Expression Analysis and Candidate Biomarker Discovery"
+subtitle: "BBCC2026 Tutorial: From 17,616 Genes to a Ranked Candidate List"
+author: |
+  **Francesco Cecere**
+  *Senior Bioinformatic Researcher*
+  AORN Santobono-Pausilipon
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 3
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    fig_width: 10
+    fig_height: 6
+---
+
+<style>
+body { font-size: 15px; }
+
+h1 {
+  border-bottom: 3px solid #2980b9;
+  padding-bottom: 8px;
+  color: #1a252f;
+  margin-top: 32px;
+}
+h2 {
+  border-bottom: 1px solid #aed6f1;
+  padding-bottom: 4px;
+  color: #2471a3;
+  margin-top: 22px;
+}
+h3 { color: #1f618d; }
+
+blockquote {
+  background-color: #eaf4fd;
+  border-left: 5px solid #2980b9;
+  padding: 14px 20px;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+  color: #2c3e50;
+  margin: 18px 0;
+}
+blockquote p { margin: 0; }
+
+.value-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0 32px 0;
+}
+.vbox {
+  background-color: #2980b9;
+  background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%);
+  color: #ffffff !important;
+  border-radius: 10px;
+  padding: 20px 28px;
+  min-width: 150px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  flex: 1;
+  transition: transform 0.2s;
+}
+.vbox:hover { transform: translateY(-3px); }
+.vbox.green  { background-color: #27ae60; background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%); }
+.vbox.red    { background-color: #e74c3c; background: linear-gradient(135deg, #e74c3c 0%, #a93226 100%); }
+.vbox.purple { background-color: #8e44ad; background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%); }
+.vbox .vbox-number, .vbox-number {
+  font-size: 2.6em; font-weight: 700; line-height: 1.1; color: #ffffff !important;
+}
+.vbox .vbox-label, .vbox-label {
+  font-size: 0.82em; margin-top: 5px; opacity: 0.92; letter-spacing: 0.02em; color: #ffffff !important;
+}
+
+.alert-sig {
+  background: #d5f5e3;
+  border-left: 5px solid #27ae60;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+.alert-notsig {
+  background: #fdf2f8;
+  border-left: 5px solid #a569bd;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+.alert-info {
+  background: #fef9e7;
+  border-left: 5px solid #f39c12;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+
+.dataTables_wrapper { margin: 10px 0 24px 0; font-size: 0.93em; }
+table.dataTable thead th {
+  background-color: #2980b9 !important;
+  color: white !important;
+}
+.dt-buttons .btn { font-size: 0.82em; padding: 3px 10px; }
+
+.report-footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #ccc;
+  font-size: 0.85em;
+  color: #777;
+  text-align: center;
+}
+
+.tocify {
+  background-color: #1a252f !important;
+  border: none !important;
+  border-radius: 8px;
+  padding: 6px 0;
+}
+.tocify .tocify-item > a {
+  color: #bdc3c7 !important;
+  padding: 6px 14px;
+  font-size: 0.88em;
+  border-radius: 4px;
+  transition: background 0.18s, color 0.18s;
+  text-decoration: none;
+}
+.tocify .tocify-item > a:hover {
+  background-color: #2c3e50 !important;
+  color: #ffffff !important;
+}
+.tocify .tocify-item.active > a {
+  background-color: #2980b9 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 4px;
+}
+.tocify-subheader {
+  background-color: #1a252f !important;
+}
+.tocify-subheader .tocify-item > a {
+  padding-left: 26px !important;
+  font-size: 0.82em !important;
+  color: #7f8c8d !important;
+}
+.tocify-subheader .tocify-item.active > a {
+  background-color: #21618c !important;
+  color: #ecf0f1 !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo      = FALSE,
+  warning   = FALSE,
+  message   = FALSE,
+  fig.align = "center",
+  dpi       = 96
+)
+```
+
+```{r libraries, include=FALSE}
+library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
+library(broom)       # tidy() converts base-R test objects into tidy tibbles
+library(plotly)      # interactive plots
+library(DT)          # interactive downloadable tables
+library(knitr)       # kable for simple inline tables
+library(scales)      # axis formatting
+```
+
+# From Module 1
+
+Module 1 confirmed that library sizes, expression distributions, and PCA structure are reasonable enough to proceed, while flagging that group is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module runs a systematic, gene-by-gene comparison between the `NNK` and `WT` groups to produce a ranked list of **candidate biomarkers**.
+
+```{r load-data, echo=TRUE}
+# Reload the count matrix and the verified sample metadata from Module 0.
+counts_raw <- read_csv(
+  "data/GSE303967_normalized_counts_All_Samples.csv",
+  show_col_types = FALSE
+) %>%
+  rename(gene_symbol = 1)
+
+sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
+
+counts_long <- counts_raw %>%
+  pivot_longer(-gene_symbol, names_to = "sample_id", values_to = "count") %>%
+  left_join(sample_metadata, by = "sample_id")
+
+cat("Rows with unmatched metadata after join (should be 0):",
+    sum(is.na(counts_long$group)), "\n")
+```
+
+# Filtering Low-Expressed Genes
+
+Genes with very low or near-zero expression across all samples add statistical noise (unstable variance estimates) without adding biological information, and can even cause a per-gene t-test to fail outright when a group's counts are constant. We apply the same mean-count filter used in Module 1 and report exactly how many genes are removed.
+
+```{r filter-genes, echo=TRUE}
+gene_mean_expr <- counts_long %>%
+  group_by(gene_symbol) %>%
+  summarise(mean_count = mean(count), .groups = "drop")
+
+n_genes_before <- nrow(gene_mean_expr)
+genes_to_keep  <- gene_mean_expr %>% filter(mean_count >= 10) %>% pull(gene_symbol)
+n_genes_after  <- length(genes_to_keep)
+
+counts_filtered <- counts_long %>%
+  filter(gene_symbol %in% genes_to_keep) %>%
+  mutate(log2_count = log2(count + 1))
+```
+
+```{r verify-filter, echo=TRUE}
+cat("Genes before filtering:", n_genes_before, "\n")
+cat("Genes after filtering (mean count >= 10):", n_genes_after, "\n")
+cat("Genes removed:", n_genes_before - n_genes_after,
+    sprintf("(%.1f%% of genes)", 100 * (n_genes_before - n_genes_after) / n_genes_before), "\n")
+```
+
+<div class="alert-info">
+**Design note.** Module 0 showed that 5 samples have no matched partner in the other group (pair IDs 16, 23, 33, 41, 42). Because pairing is incomplete, we use an **unpaired, two-sample Welch t-test** across all 45 samples rather than a paired test restricted to matched pairs only — this uses all available data but is explicitly not a paired analysis. This trade-off is stated here rather than left implicit.
+</div>
+
+# Per-Gene Differential Expression Testing
+
+For each of the `r n_genes_after` retained genes, we run a Welch two-sample t-test comparing log2(count + 1) between `NNK` and `WT`, using `purrr::map` to apply the test gene-by-gene and `broom::tidy()` to collect the results into a single tidy table — no custom helper function is defined, only standard tidyverse verbs applied to base R's `t.test()`.
+
+```{r run-de-tests, echo=TRUE}
+# Nest the data by gene, run a Welch t-test per gene, and tidy the results.
+# possibly() guards against the rare gene where a group has zero variance,
+# which would otherwise make t.test() error and stop the whole pipeline.
+de_results_raw <- counts_filtered %>%
+  select(gene_symbol, sample_id, group, log2_count) %>%
+  group_by(gene_symbol) %>%
+  nest() %>%
+  mutate(
+    test_result = map(data, possibly(~ t.test(log2_count ~ group, data = .x), otherwise = NULL))
+  )
+
+n_tests_failed <- sum(map_lgl(de_results_raw$test_result, is.null))
+
+de_results <- de_results_raw %>%
+  filter(!map_lgl(test_result, is.null)) %>%
+  mutate(tidy_result = map(test_result, tidy)) %>%
+  unnest(tidy_result) %>%
+  ungroup() %>%
+  # estimate1 = mean log2 count in group "NNK", estimate2 = mean in group "WT"
+  # (t.test(formula, data) orders groups alphabetically: NNK before WT).
+  rename(mean_log2_NNK = estimate1, mean_log2_WT = estimate2) %>%
+  mutate(
+    log2FC = mean_log2_NNK - mean_log2_WT,
+    p_adj  = p.adjust(p.value, method = "BH")
+  ) %>%
+  select(gene_symbol, mean_log2_NNK, mean_log2_WT, log2FC, statistic, p.value, p_adj) %>%
+  arrange(p_adj)
+```
+
+```{r verify-de-tests, echo=TRUE}
+cat("Genes tested:", nrow(de_results), "\n")
+cat("Genes where the test could not be run (e.g. zero variance):", n_tests_failed, "\n")
+cat("Genes significant at p_adj < 0.05:", sum(de_results$p_adj < 0.05), "\n")
+cat("Genes significant at p_adj < 0.05 AND |log2FC| > 1:",
+    sum(de_results$p_adj < 0.05 & abs(de_results$log2FC) > 1), "\n")
+```
+
+<div class="alert-info">
+**Unexpectedly large signal — flagged, not glossed over.** The number of genes reaching `p_adj < 0.05` above is a very large fraction of all genes tested. A signal this broad is unusual for a typical case/control comparison and is worth treating with caution rather than excitement: it can reflect a genuinely strong global transcriptional response, but it can equally reflect a dominant confounder (e.g. a difference in cell-type composition between the two groups, rather than a uniform treatment effect on a fixed cell population). We return to this directly in Module 3 by inspecting *what kind* of genes top the list, not just how many are significant.
+</div>
+
+# Volcano Plot
+
+A volcano plot jointly displays effect size (log2 fold-change, x-axis) and statistical significance (−log10 adjusted p-value, y-axis), making it easy to spot genes that are both strongly and confidently changed — the genes most likely to be useful, reproducible biomarkers rather than statistically significant but practically negligible changes.
+
+```{r volcano-plot, echo=TRUE, fig.height=7}
+volcano_data <- de_results %>%
+  mutate(
+    neg_log10_padj = -log10(p_adj),
+    significance = case_when(
+      p_adj < 0.05 & abs(log2FC) > 1 ~ "Significant & |log2FC| > 1",
+      p_adj < 0.05                   ~ "Significant only",
+      TRUE                            ~ "Not significant"
+    )
+  )
+
+p_volcano <- volcano_data %>%
+  ggplot(aes(x = log2FC, y = neg_log10_padj, color = significance, text = gene_symbol)) +
+  geom_point(alpha = 0.5, size = 1.2) +
+  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "grey40") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "grey40") +
+  scale_color_manual(values = c(
+    "Significant & |log2FC| > 1" = "#e74c3c",
+    "Significant only"           = "#2980b9",
+    "Not significant"            = "grey70"
+  )) +
+  labs(
+    x = "log2 fold-change (NNK vs WT)",
+    y = expression(-log[10]~"(adjusted p-value)"),
+    title = "Volcano plot of per-gene differential expression",
+    color = NULL
+  ) +
+  theme_minimal(base_size = 11)
+
+ggplotly(p_volcano, tooltip = c("text", "x", "y"))
+```
+
+# Top Candidate Biomarkers
+
+The table below lists the top 200 genes ranked by adjusted p-value (out of `r sum(de_results$p_adj < 0.05)` significant at `p_adj < 0.05`). The full result table for all `r nrow(de_results)` tested genes is exported to CSV below the table for anyone who needs the complete list.
+
+```{r table-top-candidates}
+top_candidates <- de_results %>% slice_head(n = 200)
+
+datatable(
+  top_candidates %>%
+    mutate(across(where(is.numeric), ~ signif(.x, 4))),
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 15),
+  rownames = FALSE,
+  caption = "Top 200 candidate biomarkers ranked by adjusted p-value."
+)
+```
+
+```{r export-de-results, echo=TRUE}
+# Persist the full differential expression table for use in Module 3 and for
+# anyone who wants the complete, unfiltered result set.
+dir.create("results", showWarnings = FALSE)
+write_csv(de_results, "results/differential_expression_results.csv")
+
+reloaded_results <- read_csv("results/differential_expression_results.csv", show_col_types = FALSE)
+cat("results/differential_expression_results.csv written with", nrow(reloaded_results), "rows.\n")
+cat("Row count matches in-memory table:", nrow(reloaded_results) == nrow(de_results), "\n")
+```
+
+# Statistical Significance vs. Biological Relevance in Pediatric Cohorts
+
+- **A p-value is not a biomarker.** Especially with a broad significant signal like the one flagged above, effect size (`log2FC`) and biological plausibility matter as much as, or more than, the adjusted p-value alone.
+- **Pediatric rare disease and cancer studies are almost always underpowered by adult-oncology standards.** A handful of cases per year means every statistical test here runs on far fewer samples than a typical adult cancer cohort study; this argues for prioritizing genes with **large, consistent effect sizes** over borderline p-values, and for treating any single-cohort candidate list as hypothesis-generating rather than diagnostic.
+- **Any candidate list needs independent validation** — an orthogonal cohort, an orthogonal assay (e.g. qPCR, IHC), or both — before it can be called a biomarker in the clinical sense. Module 3 takes the first step toward that kind of scrutiny by checking these candidates against genes with independent, literature-based relevance to pediatric cancer.
+
+---
+
+## Summary
+
+This report covers the following analyses:
+
+| Section | Description |
+|---------|-------------|
+| Gene filtering | Removed low-expressed genes (mean count < 10), reducing the tested gene set and reporting the exact number and percentage removed. |
+| Per-gene testing | Ran a Welch two-sample t-test per gene (NNK vs WT) on log2-transformed counts using `purrr`/`broom`, with BH FDR correction, and flagged the unusually large fraction of significant genes rather than treating it as a straightforward positive result. |
+| Volcano plot | Visualized effect size vs. significance for every tested gene, with explicit significance and effect-size thresholds. |
+| Candidate table | Reported the top 200 candidate biomarkers by adjusted p-value and exported the full result table to `results/differential_expression_results.csv`. |
+
+### Downloadable Outputs
+
+- **Tables**: the top-candidates table includes CSV / Excel / PDF download buttons.
+- **Plots**: the volcano plot includes a PNG download button via the plotly toolbar.
+- **Files**: `results/differential_expression_results.csv` (full differential expression results for all tested genes).
+
+---
+
+<div class="report-footer">
+Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere · Senior Bioinformatic Researcher · AORN Santobono-Pausilipon
+</div>

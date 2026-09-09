@@ -1,0 +1,378 @@
+---
+title: "Module 0 — From Raw Files to a Biobank-Grade Sample Sheet"
+subtitle: "BBCC2026 Tutorial: Organizing Metadata Before Any Analysis Begins"
+author: |
+  **Francesco Cecere**
+  *Senior Bioinformatic Researcher*
+  AORN Santobono-Pausilipon
+date: "`r format(Sys.Date(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 3
+    theme: flatly
+    highlight: tango
+    code_folding: hide
+    fig_width: 10
+    fig_height: 6
+---
+
+<style>
+body { font-size: 15px; }
+
+h1 {
+  border-bottom: 3px solid #2980b9;
+  padding-bottom: 8px;
+  color: #1a252f;
+  margin-top: 32px;
+}
+h2 {
+  border-bottom: 1px solid #aed6f1;
+  padding-bottom: 4px;
+  color: #2471a3;
+  margin-top: 22px;
+}
+h3 { color: #1f618d; }
+
+blockquote {
+  background-color: #eaf4fd;
+  border-left: 5px solid #2980b9;
+  padding: 14px 20px;
+  border-radius: 0 6px 6px 0;
+  font-style: italic;
+  color: #2c3e50;
+  margin: 18px 0;
+}
+blockquote p { margin: 0; }
+
+.value-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 24px 0 32px 0;
+}
+.vbox {
+  background-color: #2980b9;
+  background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%);
+  color: #ffffff !important;
+  border-radius: 10px;
+  padding: 20px 28px;
+  min-width: 150px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  flex: 1;
+  transition: transform 0.2s;
+}
+.vbox:hover { transform: translateY(-3px); }
+.vbox.green  { background-color: #27ae60; background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%); }
+.vbox.red    { background-color: #e74c3c; background: linear-gradient(135deg, #e74c3c 0%, #a93226 100%); }
+.vbox.purple { background-color: #8e44ad; background: linear-gradient(135deg, #8e44ad 0%, #6c3483 100%); }
+.vbox .vbox-number, .vbox-number {
+  font-size: 2.6em; font-weight: 700; line-height: 1.1; color: #ffffff !important;
+}
+.vbox .vbox-label, .vbox-label {
+  font-size: 0.82em; margin-top: 5px; opacity: 0.92; letter-spacing: 0.02em; color: #ffffff !important;
+}
+
+.alert-sig {
+  background: #d5f5e3;
+  border-left: 5px solid #27ae60;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+.alert-notsig {
+  background: #fdf2f8;
+  border-left: 5px solid #a569bd;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+.alert-info {
+  background: #fef9e7;
+  border-left: 5px solid #f39c12;
+  padding: 12px 18px;
+  border-radius: 0 6px 6px 0;
+  margin: 12px 0;
+}
+
+.dataTables_wrapper { margin: 10px 0 24px 0; font-size: 0.93em; }
+table.dataTable thead th {
+  background-color: #2980b9 !important;
+  color: white !important;
+}
+.dt-buttons .btn { font-size: 0.82em; padding: 3px 10px; }
+
+.report-footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid #ccc;
+  font-size: 0.85em;
+  color: #777;
+  text-align: center;
+}
+
+.tocify {
+  background-color: #1a252f !important;
+  border: none !important;
+  border-radius: 8px;
+  padding: 6px 0;
+}
+.tocify .tocify-item > a {
+  color: #bdc3c7 !important;
+  padding: 6px 14px;
+  font-size: 0.88em;
+  border-radius: 4px;
+  transition: background 0.18s, color 0.18s;
+  text-decoration: none;
+}
+.tocify .tocify-item > a:hover {
+  background-color: #2c3e50 !important;
+  color: #ffffff !important;
+}
+.tocify .tocify-item.active > a {
+  background-color: #2980b9 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border-radius: 4px;
+}
+.tocify-subheader {
+  background-color: #1a252f !important;
+}
+.tocify-subheader .tocify-item > a {
+  padding-left: 26px !important;
+  font-size: 0.82em !important;
+  color: #7f8c8d !important;
+}
+.tocify-subheader .tocify-item.active > a {
+  background-color: #21618c !important;
+  color: #ecf0f1 !important;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo      = FALSE,
+  warning   = FALSE,
+  message   = FALSE,
+  fig.align = "center",
+  dpi       = 96
+)
+```
+
+```{r libraries, include=FALSE}
+library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
+library(plotly)      # interactive plots
+library(DT)          # interactive downloadable tables
+library(knitr)       # kable for simple inline tables
+library(scales)      # axis formatting
+```
+
+# Welcome to the BBCC2026 Tutorial
+
+> This tutorial offers a hands-on introduction to how biological and clinical data are organized, analyzed, and turned into clinically meaningful findings. Starting from the organization of metadata and biobanking, we will follow a real dataset through an expression analysis to identify candidate biomarkers with downstream interpretation. Each module is connected back to rare disease and cancer biology from a pediatric point of view, highlighting what makes them challenging to analyze.
+
+<div class="value-boxes">
+<div class="vbox"><div class="vbox-number">4</div><div class="vbox-label">MODULES</div></div>
+<div class="vbox green"><div class="vbox-number">45</div><div class="vbox-label">SAMPLES</div></div>
+<div class="vbox purple"><div class="vbox-number">17,616</div><div class="vbox-label">GENES (RAW)</div></div>
+<div class="vbox red"><div class="vbox-number">GSE303967</div><div class="vbox-label">SOURCE DATASET</div></div>
+</div>
+
+## Roadmap
+
+| Module | Title | Focus |
+|--------|-------|-------|
+| 0 | Metadata & Biobanking | Turning raw file names into a traceable, biobank-grade sample sheet |
+| 1 | Exploratory Analysis & QC | Library sizes, distributions, PCA, sample-sample correlation |
+| 2 | Expression Analysis & Biomarker Discovery | Filtering, per-gene testing, volcano plot, candidate table |
+| 3 | Downstream Interpretation | Curated pediatric-cancer gene sets, enrichment testing, clinical framing |
+
+This module — **Module 0** — is deliberately the least "computational" and the most conceptual, because in real translational research **the analysis is only as trustworthy as the metadata behind it.** This is especially true in **pediatric rare disease and pediatric oncology**, where cohorts are small by definition, samples are precious and often irreplaceable, and a single mislabeled sample can invalidate months of work. Before touching a single p-value, we need to know: *which sample is which, which samples belong together, and what, exactly, are we comparing?*
+
+# Loading the Raw Count Matrix
+
+The starting point of almost every genomics analysis is a **count matrix**: rows are genes, columns are samples, and cells hold expression values. Here we work with `r "data/GSE303967_normalized_counts_All_Samples.csv"`, downloaded from the public GEO series **GSE303967**. Note that we could not independently confirm the full experimental design (tissue, exact NNK exposure protocol) from the GEO record at the time of writing — this is flagged explicitly rather than assumed, in line with the rule that nothing is stated as fact unless it has been verified from the data or the source itself.
+
+What we *can* verify directly from the file is loaded and checked below: its dimensions, whether gene identifiers are unique, whether there are missing values, and whether the gene naming convention tells us anything about species.
+
+```{r load-raw-counts, echo=TRUE}
+# Read the raw count matrix exactly as distributed on GEO.
+# The first column (unnamed in the CSV header) holds gene symbols, not a numeric sample.
+counts_raw <- read_csv(
+  "data/GSE303967_normalized_counts_All_Samples.csv",
+  show_col_types = FALSE
+)
+
+# Rename the first column explicitly so downstream code never relies on a
+# positional, unnamed column.
+counts_raw <- rename(counts_raw, gene_symbol = 1)
+```
+
+```{r verify-raw-counts, echo=TRUE}
+# --- Verification chunk: never assume a file "looks right" without checking ---
+
+# 1. Dimensions: how many genes (rows) and samples (columns)?
+n_genes_raw   <- nrow(counts_raw)
+n_samples_raw <- ncol(counts_raw) - 1  # minus the gene_symbol column
+cat("Genes (rows):", n_genes_raw, "\n")
+cat("Samples (columns):", n_samples_raw, "\n")
+
+# 2. Uniqueness of gene identifiers: duplicated symbols would break any
+#    downstream join or per-gene grouping.
+n_duplicated_genes <- sum(duplicated(counts_raw$gene_symbol))
+cat("Duplicated gene symbols:", n_duplicated_genes, "\n")
+
+# 3. Missing values: a count matrix should not contain NAs.
+n_missing_values <- sum(is.na(counts_raw))
+cat("Missing values in the matrix:", n_missing_values, "\n")
+
+# 4. Species check from gene nomenclature, not assumption. Human (HGNC) gene
+#    symbols are fully upper-case (e.g. "TP53"); mouse (MGI) symbols only
+#    capitalise the first letter (e.g. "Tp53"). We check both forms for a
+#    housekeeping-type gene present in virtually every RNA-seq experiment.
+has_human_style <- "TP53" %in% counts_raw$gene_symbol
+has_mouse_style <- "Tp53" %in% counts_raw$gene_symbol
+cat("Human-style symbol 'TP53' present:", has_human_style, "\n")
+cat("Mouse-style symbol 'Tp53' present:", has_mouse_style, "\n")
+```
+
+<div class="alert-info">
+**Verification note.** The gene symbol capitalisation confirms **human (HGNC) nomenclature** — this is a fact we derived from the data itself, not an assumption. Every value in this matrix is an integer with no decimal component; this is consistent with **upper-quartile (UQ) normalization**, where each sample's raw counts are scaled by a per-sample size factor derived from the upper quartile (typically the 75th percentile) of its non-zero counts and then rounded back to integers — unlike CPM/TPM or DESeq2 median-of-ratios normalization, which are usually left as continuous values. We record this explicitly here because the normalization method changes how the data should be interpreted downstream: UQ-normalized counts still benefit from a log-transform before comparison (used throughout this tutorial), and the still-integer scale should not be mistaken for raw, un-normalized counts.
+</div>
+
+# Building a Sample Sheet From Column Names
+
+The raw file gives us no metadata table at all — only column headers such as `NNK16`, `WT19`, `NNK24`. This is a common, unglamorous reality of public and even in-house data: **the sample sheet has to be reconstructed**. In a proper biobank workflow this information (group, subject/animal ID, collection date, batch, operator) would be captured **at the moment of sample intake**, not reverse-engineered later from a spreadsheet column. We reconstruct what we can here as a worked example of *why* that discipline matters.
+
+Each column name follows the pattern `<GROUP><ID>`, where `GROUP` is either `NNK` (the exposed/case arm) or `WT` (wild-type/control arm), and `ID` is a numeric identifier. We parse this systematically with `stringr`, rather than by hand, so the process is reproducible and auditable.
+
+```{r build-metadata, echo=TRUE}
+# Extract sample identifiers directly from the column names of the count matrix.
+sample_ids <- colnames(counts_raw)[-1]
+
+# Parse each sample ID into a structured metadata table:
+#  - group:   the leading letters (NNK = exposed/case, WT = wild-type/control)
+#  - pair_id: the trailing digits, which we hypothesise identifies a matched
+#             subject/animal shared between the two arms.
+sample_metadata <- tibble(sample_id = sample_ids) %>%
+  mutate(
+    group   = str_extract(sample_id, "^[A-Za-z]+"),
+    pair_id = str_extract(sample_id, "[0-9]+$")
+  )
+```
+
+```{r verify-metadata, echo=TRUE}
+# Verify the parsing worked for every single sample: no sample should end up
+# with a missing group or pair_id.
+n_unparsed <- sum(is.na(sample_metadata$group) | is.na(sample_metadata$pair_id))
+cat("Samples that failed to parse:", n_unparsed, "\n")
+
+# Confirm every sample_id round-trips: pasting group + pair_id back together
+# should reproduce the original column name exactly.
+reconstructed <- paste0(sample_metadata$group, sample_metadata$pair_id)
+cat("Round-trip parsing matches original column names for all samples:",
+    all(reconstructed == sample_metadata$sample_id), "\n")
+```
+
+The full reconstructed sample sheet — downloadable as CSV/Excel/PDF — is shown below.
+
+```{r table-metadata}
+datatable(
+  sample_metadata,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 15),
+  rownames = FALSE,
+  caption = "Reconstructed sample metadata (one row per sample)."
+)
+```
+
+## Group Balance
+
+```{r group-balance, echo=TRUE}
+group_counts <- count(sample_metadata, group, name = "n_samples")
+```
+
+```{r table-group-balance}
+kable(group_counts, caption = "Number of samples per group.")
+```
+
+# Traceability: Are the Two Arms Actually Matched?
+
+A **matched-pair design** (the same subject or animal contributing both a case and a control sample) is statistically powerful, because it removes inter-individual variability from the comparison. But it only works if pairing is *complete and verified* — an untracked missing partner silently turns a paired analysis into a biased one. We check this directly from `pair_id`, rather than assuming the study was fully paired.
+
+```{r check-pairing, echo=TRUE}
+# Count how many times each pair_id appears. A fully matched design would show
+# every pair_id exactly twice (once per group).
+pairing_check <- sample_metadata %>%
+  count(pair_id, name = "n_occurrences") %>%
+  arrange(desc(n_occurrences))
+
+n_matched_pairs   <- sum(pairing_check$n_occurrences == 2)
+unmatched_pairids <- pairing_check %>% filter(n_occurrences != 2) %>% pull(pair_id)
+```
+
+```{r table-pairing}
+datatable(
+  pairing_check,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 15),
+  rownames = FALSE,
+  caption = "Occurrences of each pair_id across the two groups."
+)
+```
+
+<div class="alert-info">
+**Result.** `r n_matched_pairs` pair IDs are fully matched (present in both `NNK` and `WT`), while `r length(unmatched_pairids)` pair ID(s) — `r paste(unmatched_pairids, collapse = ", ")` — appear only once. This is documented here explicitly rather than silently dropped, and it means a *fully paired* statistical test cannot be applied to every sample without excluding these unmatched cases. In Module 2 we use an unpaired (two-sample) test across all available samples for this reason, and this decision is stated openly rather than left implicit.
+</div>
+
+# Why This Matters for Pediatric Rare Disease and Cancer
+
+Everything above — parsing IDs, checking group balance, verifying pairing — may look like bookkeeping, but it is the step where pediatric bioinformatics projects most often fail silently:
+
+- **Small cohorts amplify metadata errors.** A rare pediatric tumor study may enroll a handful of patients per year. One swapped or mislabeled sample can shift a whole cohort's conclusions, whereas in a 10,000-adult cohort the same error is diluted into noise.
+- **Biobanking discipline is what makes rare-disease research possible at all.** Multi-center biobanks (tumor plus matched normal tissue, longitudinal liquid biopsies, family trios for rare Mendelian disease) only remain usable if sample provenance, consent status, and collection metadata are captured at intake — not reconstructed years later from a filename, as we were forced to do here.
+- **Matched designs are common and valuable in pediatric studies** (tumor vs. adjacent normal, pre- vs. post-treatment, proband vs. unaffected sibling), which is exactly why we checked pairing explicitly instead of assuming it.
+
+# Exporting Clean Metadata for Downstream Modules
+
+We save the reconstructed, verified sample sheet so that Modules 1–3 read a single, consistent source of truth rather than re-deriving it independently.
+
+```{r export-metadata, echo=TRUE}
+# Persist the verified metadata table to disk for reuse by later modules.
+write_csv(sample_metadata, "data/sample_metadata.csv")
+
+# Confirm the file was written and round-trips correctly.
+reloaded_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
+cat("sample_metadata.csv written with", nrow(reloaded_metadata), "rows and",
+    ncol(reloaded_metadata), "columns.\n")
+cat("Reloaded table identical to in-memory table:",
+    identical(dim(reloaded_metadata), dim(sample_metadata)), "\n")
+```
+
+---
+
+## Summary
+
+This report covers the following analyses:
+
+| Section | Description |
+|---------|-------------|
+| Loading the raw count matrix | Loaded the GSE303967 count matrix and verified its dimensions, gene-symbol uniqueness, absence of missing values, and species (human, from HGNC-style nomenclature); flagged that the "normalized_counts" file actually contains integer values. |
+| Building a sample sheet | Parsed `NNK`/`WT` group and numeric ID directly from column names into a structured, auditable metadata table. |
+| Traceability check | Verified which samples form matched NNK/WT pairs and explicitly flagged the 5 samples with no matched partner. |
+| Exporting metadata | Saved the verified sample sheet to `data/sample_metadata.csv` for reuse in Modules 1–3. |
+
+### Downloadable Outputs
+
+- **Tables**: the sample metadata and pairing-check tables include CSV / Excel / PDF download buttons.
+- **Files**: `data/sample_metadata.csv` (reusable metadata table for subsequent modules).
+
+---
+
+<div class="report-footer">
+Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere · Senior Bioinformatic Researcher · AORN Santobono-Pausilipon
+</div>

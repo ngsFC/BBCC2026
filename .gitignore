@@ -1,0 +1,11 @@
+# Rendered output (regenerate by knitting the .Rmd files)
+*.html
+*.knit.md
+*.utf8.md
+
+# R session / project files
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
