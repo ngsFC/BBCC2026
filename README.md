@@ -8,7 +8,7 @@
 
 ## Launching the Tutorial
 
-Click the **Binder badge** above. It builds a container from this repository (via `runtime.txt` / `install.R`) and opens **RStudio Server** directly in your browser — no local R installation needed. From RStudio, open any of the four `.Rmd` files and click **Knit** to run it top to bottom.
+Click the **Binder badge** above. It builds a container from this repository (via `.binder/Dockerfile`) and opens **RStudio Server** directly in your browser — no local R installation needed. From RStudio, open any of the four `.Rmd` files and click **Knit** to run it top to bottom.
 
 The first launch can take several minutes while the environment is built; subsequent launches from the same commit are much faster thanks to Binder's build cache.
 
@@ -45,11 +45,13 @@ Each module knits to a self-contained, interactive `.html` report (downloadable 
 ├── results/
 │   ├── differential_expression_results.csv           # produced by Module 2
 │   └── pediatric_gene_set_overlap.csv                # produced by Module 3
-├── install.R        # R packages installed by Binder at build time
-├── runtime.txt       # pins the CRAN snapshot date used to build the environment
+├── .binder/
+│   └── Dockerfile     # defines the Binder build environment (see below)
 └── README.md
 ```
 
 ## Environment
 
-This repository is built by [repo2docker](https://repo2docker.readthedocs.io/) (the engine behind mybinder.org). `runtime.txt` pins a CRAN snapshot date so every Binder launch installs the same package versions; `install.R` lists the packages required across all four modules (`tidyverse`, `broom`, `plotly`, `DT`, `knitr`, `scales`, `rmarkdown`). Detecting an R environment, repo2docker automatically provides an RStudio Server interface, reached via the `?urlpath=rstudio` suffix already included in the Binder badge link above.
+This repository is built by [repo2docker](https://repo2docker.readthedocs.io/) (the engine behind mybinder.org) from `.binder/Dockerfile`, which starts `FROM rocker/binder:4.4.1` — a base image that already ships RStudio Server correctly configured for Binder's unprivileged container user — and installs the packages required across all four modules (`tidyverse`, `broom`, `plotly`, `DT`, `knitr`, `scales`, `rmarkdown`) on top of it.
+
+An earlier version of this repository used repo2docker's own `runtime.txt` / `install.R` R-buildpack convention instead. That path builds RStudio Server through a different mechanism than `rocker/binder`, and on the current mybinder.org infrastructure it produced a broken `/etc/rstudio/rserver.conf` (`www-user=rstudio-server`), which the unprivileged `jovyan` container user has no permission to satisfy — causing every launch to fail with "could not start rstudio in time" / `Attempt to run server as user 'rstudio-server' ... without privilege`. Building from `rocker/binder` directly sidesteps that broken code path entirely, since RStudio is already correctly configured in the base image before this repository's own build steps ever run.
