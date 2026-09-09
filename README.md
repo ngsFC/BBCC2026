@@ -1,10 +1,10 @@
 # BBCC2026 — From Biobanking Metadata to Clinically Meaningful Biomarkers
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/<YOUR-GITHUB-USERNAME>/<YOUR-REPO-NAME>/HEAD?urlpath=rstudio)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ngsFC/BBCC2026/HEAD?urlpath=rstudio)
 
 > This tutorial offers a hands-on introduction to how biological and clinical data are organized, analyzed, and turned into clinically meaningful findings. Starting from the organization of metadata and biobanking, participants follow a real dataset through an expression analysis to identify candidate biomarkers with downstream interpretation. Each module is connected back to rare disease and cancer biology from a pediatric point of view, highlighting what makes them challenging to analyze.
 
-**Replace `<YOUR-GITHUB-USERNAME>/<YOUR-REPO-NAME>` above** with the actual GitHub path once this repository is pushed, so the badge links to the right build.
+
 
 ## Launching the Tutorial
 
