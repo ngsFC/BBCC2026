@@ -11,3 +11,21 @@ install.packages(c(
   "scales",     # axis label formatting (e.g. comma-separated counts)
   "rmarkdown"   # knits the .Rmd modules to .html
 ))
+
+# --- Fix a known repo2docker/RStudio-on-Binder bug ---
+# The RStudio Server .deb package writes /etc/rstudio/rserver.conf with
+# `www-user=rstudio-server`. Binder containers run everything as the
+# unprivileged notebook user (jovyan), which cannot switch to that system
+# account, causing rserver to fail at launch with:
+#   "Attempt to run server as user 'rstudio-server' ... without privilege"
+# install.R still runs as root at this point in the R buildpack (before the
+# Dockerfile switches to the unprivileged user), so this is the one place in
+# this repository where /etc/rstudio/rserver.conf can be corrected.
+rserver_conf <- "/etc/rstudio/rserver.conf"
+if (file.exists(rserver_conf)) {
+  conf_lines <- readLines(rserver_conf)
+  conf_lines <- conf_lines[!grepl("^www-user=", conf_lines)]
+  nb_user <- Sys.getenv("NB_USER", unset = "jovyan")
+  conf_lines <- c(conf_lines, paste0("www-user=", nb_user))
+  writeLines(conf_lines, rserver_conf)
+}
