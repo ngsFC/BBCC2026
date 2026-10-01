@@ -12,6 +12,21 @@ Click the **Binder badge** above. It builds a container from this repository (vi
 
 The first launch can take several minutes while the environment is built; subsequent launches from the same commit are much faster thanks to Binder's build cache.
 
+## Workshop Schedule (beginner-friendly, 4h00 including breaks)
+
+This tutorial is designed to be run live as a **4-hour workshop for R/bioinformatics beginners** (no prior experience with differential expression or survival analysis assumed). Each module is self-paced on Binder, but the timings below are what a facilitator should expect when running it as a group session, breaks included. Each `.Rmd` also carries its own **Session plan** line and a facilitator time-budget note at the end of each Part, so a facilitator can see at a glance whether the group is on pace.
+
+| Time | Block | Duration |
+|------|-------|----------|
+| 0:00 – 0:50 | Module 0 — Metadata & Biobanking | 50 min |
+| 0:50 – 1:00 | Break | 10 min |
+| 1:00 – 1:35 | Module 1 — Exploratory Analysis & QC | 35 min |
+| 1:35 – 1:45 | Break | 10 min |
+| 1:45 – 2:45 | Module 2 — Expression Analysis & Biomarker Discovery | 60 min |
+| 2:45 – 2:55 | Break | 10 min |
+| 2:55 – 3:50 | Module 3 — Survival Analysis | 55 min |
+| 3:50 – 4:00 | Wrap-up & Q&A | 10 min |
+
 ## Modules
 
 Run the modules **in order** the first time — each one reads a file produced by the previous one, which is itself part of the lesson (a reproducible pipeline leaves traceable intermediate artifacts instead of hidden in-memory state).

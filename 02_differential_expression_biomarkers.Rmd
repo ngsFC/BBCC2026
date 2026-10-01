@@ -177,7 +177,11 @@ library(scales)      # axis formatting
 
 Module 1 confirmed that library sizes, expression distributions, and PCA structure are reasonable enough to proceed, while flagging that group is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module goes end-to-end: from raw expression values to a ranked list of **candidate biomarkers**, with an explicit stop along the way to reconnect to the metadata work from Module 0.
 
-**Session plan (≈65 minutes):** presenting the dataset (10 min) → explicit bridge to Module 0 (10 min) → guided walkthrough of the expression analysis (25 min) → light hands-on threshold exploration (15 min) → closing pediatric lens (5 min).
+**Session plan (≈60 minutes):** presenting the dataset (8 min) → explicit bridge to Module 0 (7 min) → guided walkthrough of the expression analysis (25 min) → light hands-on threshold exploration (15 min) → closing pediatric lens (5 min).
+
+<div class="alert-info">
+**Facilitator note.** This is the statistically densest module — a per-gene t-test, multiple-testing correction, and two plot types in one go. Beginners do not need to read the `nest()`/`map()` code closely (see the callout before it); the goal is to understand *what* each step does and why, not to type the pipeline from memory.
+</div>
 
 # Part 1 — Presenting the Dataset
 
@@ -272,6 +276,10 @@ cat("Genes removed:", n_genes_before - n_genes_after,
 ## Per-Gene Differential Expression Testing
 
 For each of the `r n_genes_after` retained genes, we run a Welch two-sample t-test comparing log2(count + 1) between `NNK` and `WT`, using `purrr::map` to apply the test gene-by-gene and `broom::tidy()` to collect the results into a single tidy table — no custom helper function is defined, only standard tidyverse verbs applied to base R's `t.test()`.
+
+<div class="alert-info">
+**Beginner note — what does `nest()` + `map()` actually do here?** `t.test()` only ever compares two groups at a time, and we have `r n_genes_after` genes to test — one t-test per gene, run automatically instead of copy-pasted `r n_genes_after` times. `nest()` splits the long table into one mini-table per gene, `map()` runs `t.test()` once on each of those mini-tables, and `tidy()` turns each test's result back into a tidy row. The pattern — **nest, map a function over each piece, tidy, unnest** — is one of the most useful in `tidyverse` for "do the same analysis once per group," and it comes up constantly beyond just t-tests.
+</div>
 
 ```{r run-de-tests, echo=TRUE}
 # Nest the data by gene, run a Welch t-test per gene, and tidy the results.
@@ -449,13 +457,17 @@ kable(top15, caption = "Top 15 candidates by adjusted p-value.")
 
 Every threshold used so far (`p_adj < 0.05`, `|log2FC| > 1`) was a choice, not a law of nature. The point of this section is **not** to teach new statistics — it is to build a feel for how moving those thresholds changes what counts as a "finding," using the two sliders below. They control a live-linked plot and table (built with the `crosstalk` package): drag either slider and both update instantly, entirely in your browser, with no code to re-run.
 
-For readability and file size, this explorer is restricted to the 1,000 genes already ranked most significant in `de_results` — sliding the thresholds below explores *which of these* survive stricter cutoffs, not the full `r nrow(de_results)`-gene universe.
+For readability and file size, this explorer is restricted to the 300 genes already ranked most significant in `de_results` — sliding the thresholds below explores *which of these* survive stricter cutoffs, not the full `r nrow(de_results)`-gene universe.
+
+<div class="alert-info">
+**Try this, in order (≈5 min):** (1) leave both sliders at their default, and note roughly how many genes are shown; (2) drag the fold-change slider up until it reads "Minimum |log2 fold-change| = 2" and note how the point count on the plot drops; (3) put that slider back, and instead drag the p-value slider down to its minimum — compare which of the two moves removed more genes. There is no right answer; the point is to see the two thresholds behave differently.
+</div>
 
 ```{r crosstalk-explorer, echo=TRUE}
 # SharedData links the plot and the table below: any filter applied via the
 # sliders is applied to both simultaneously, client-side, in the rendered HTML.
 explorer_data <- de_results %>%
-  slice_head(n = 1000) %>%
+  slice_head(n = 300) %>%
   mutate(neg_log10_padj = -log10(p_adj), abs_log2FC = abs(log2FC))
 
 shared_explorer <- SharedData$new(explorer_data, key = ~gene_symbol, group = "de_explorer")
@@ -513,7 +525,7 @@ This report covers the following analyses:
 | Part 1 — Presenting the dataset | Described GSE303967 and its 45 samples/23 NNK/22 WT groups, and situated it relative to dedicated pediatric cancer genomics resources (TARGET/GDC vs. TCGA) without overclaiming what this specific dataset represents. |
 | Part 2 — Bridge to Module 0 | Compared the real metadata fields available for GSE303967 against the clinical schema built by hand in Module 0, and made explicit which fields (age, sex, collection date, consent) simply do not exist for this dataset. |
 | Part 3 — Guided walkthrough | Filtered low-expressed genes, ran a Welch two-sample t-test per gene (NNK vs WT) on log2-transformed counts using `purrr`/`broom` with BH FDR correction, visualized the result as a volcano plot and a z-scored heatmap of the top 30 candidates, and flagged that several top genes are known renal collecting-duct markers rather than confirmed carcinogenesis genes. |
-| Part 4 — Guided exploration | Built a `crosstalk`-linked slider/plot/table explorer over the top 1,000 candidates, letting fold-change and p-value thresholds be adjusted live to see how the candidate list changes. |
+| Part 4 — Guided exploration | Built a `crosstalk`-linked slider/plot/table explorer over the top 300 candidates, letting fold-change and p-value thresholds be adjusted live to see how the candidate list changes. |
 | Part 5 — Closing pediatric lens | Used this analysis's own sample size (45) as a concrete illustration of pediatric cohort scale, and discussed statistical significance vs. biological relevance under that constraint. |
 
 ### Downloadable Outputs
@@ -521,6 +533,10 @@ This report covers the following analyses:
 - **Tables**: the real-metadata, top-candidates, and live-filtered explorer tables all include CSV / Excel (/ PDF where applicable) download buttons.
 - **Plots**: the volcano plot and heatmap include a PNG download button via the plotly toolbar; the Part 4 explorer plot is interactively filterable by the sliders above it.
 - **Files**: `results/differential_expression_results.csv` (full differential expression results for all tested genes).
+
+<div class="alert-info">
+**Facilitator note.** Suggested break before Module 3: **10 minutes.**
+</div>
 
 ---
 

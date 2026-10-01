@@ -175,6 +175,12 @@ library(scales)      # axis formatting
 
 Module 0 turned the raw column names of `GSE303967_normalized_counts_All_Samples.csv` into a verified, structured sample sheet (`data/sample_metadata.csv`): 45 samples, 23 `NNK` and 22 `WT`, mostly matched in pairs by a shared numeric ID, with 5 samples lacking a matched partner. Before we compare groups statistically in Module 2, this module asks a more basic question: **do the samples themselves look trustworthy?** Quality control is not a formality — an unnoticed outlier sample, batch effect, or mislabeled group can produce a "biomarker" that is really just a technical artifact.
 
+**Session plan (≈35 minutes):** recap & reload the data (5 min) → library sizes (5 min) → expression distributions (5 min) → PCA, explained and plotted (12 min) → sample-sample correlation (5 min) → pediatric QC takeaways (3 min).
+
+<div class="alert-info">
+**Facilitator note.** This module is the first one with genuinely new statistical ideas (PCA, correlation). Each plot below is interactive (hover, zoom, download via the plotly toolbar) — encourage the group to hover over individual points/cells rather than just reading the static shape, it makes the QC checks much more concrete for beginners.
+</div>
+
 ```{r load-data, echo=TRUE}
 # Load the count matrix and the verified metadata table produced in Module 0.
 counts_raw <- read_csv(
@@ -254,6 +260,10 @@ ggplotly(p_boxplot)
 # Principal Component Analysis
 
 PCA summarizes genome-wide variation into a small number of orthogonal axes. If `NNK` and `WT` samples separate cleanly along the top components, group is a major driver of overall transcriptional variation; if they do not, group differences (if any) are more subtle than other sources of variability (batch, individual variation, etc.).
+
+<div class="alert-info">
+**Beginner note — what is PCA, in plain language?** Each sample here is a point in a space with 17,616 dimensions (one per gene) — far too many to plot or even imagine. **PCA finds a small number of new axes (PC1, PC2, ...) that capture as much of the sample-to-sample variation as possible**, so we can plot the single biggest source of variation on the x-axis (PC1) and the second-biggest on the y-axis (PC2) and still see most of the real structure in just one 2D scatterplot. No gene-by-gene inspection needed — it is a summary of everything at once.
+</div>
 
 ```{r filter-and-pca, echo=TRUE}
 # Filter out very low-expressed genes before PCA: near-constant, low-count
@@ -380,6 +390,10 @@ This report covers the following analyses:
 
 - **Tables**: the variance-explained table includes CSV / Excel / PDF download buttons.
 - **Plots**: all interactive plots (library size, expression distribution, PCA, correlation heatmap) include a PNG download button via the plotly toolbar.
+
+<div class="alert-info">
+**Facilitator note.** Suggested break before Module 2: **10 minutes.**
+</div>
 
 ---
 
