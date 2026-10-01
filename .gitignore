@@ -1,5 +1,7 @@
 # Rendered output (regenerate by knitting the .Rmd files)
+# Pre-rendered copies are intentionally committed under html/ — see README.
 *.html
+!html/*.html
 *.knit.md
 *.utf8.md
 

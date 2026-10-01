@@ -350,7 +350,7 @@ p_volcano <- volcano_data %>%
   )) +
   labs(
     x = "log2 fold-change (NNK vs WT)",
-    y = expression(-log[10]~"(adjusted p-value)"),
+    y = "-log10(adjusted p-value)",
     title = "Volcano plot of per-gene differential expression",
     color = NULL
   ) +
