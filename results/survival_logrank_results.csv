@@ -1,7 +1,0 @@
-combo_id,gene,threshold_label,n_samples,logrank_p
-RP11-690G19.4 — Median split (50/50),RP11-690G19.4,Median split (50/50),45,0.012481131807634214
-"RP11-690G19.4 — Tertile split (33/33, middle excluded)",RP11-690G19.4,"Tertile split (33/33, middle excluded)",33,0.009424296663686839
-DDX49 — Median split (50/50),DDX49,Median split (50/50),45,0.5339292066060473
-"DDX49 — Tertile split (33/33, middle excluded)",DDX49,"Tertile split (33/33, middle excluded)",30,0.5983835347072073
-STRIP2 — Median split (50/50),STRIP2,Median split (50/50),45,0.4424584968290447
-"STRIP2 — Tertile split (33/33, middle excluded)",STRIP2,"Tertile split (33/33, middle excluded)",30,0.027139943960934255

@@ -5,6 +5,9 @@
 *.knit.md
 *.utf8.md
 
+# Raw per-sample downloads used once to build data/TARGET_WT_*.csv -- not committed
+data-prep/raw_downloads/
+
 # R session / project files
 .Rproj.user/
 .Rhistory

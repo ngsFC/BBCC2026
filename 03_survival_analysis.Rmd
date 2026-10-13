@@ -1,6 +1,6 @@
 ---
-title: "Module 3 — From Biomarkers to Clinical Outcome: Survival Analysis"
-subtitle: "BBCC2026 Tutorial: Does This Candidate Gene Actually Matter for the Patient?"
+title: "Module 3 — From Biomarkers to Gene Regulatory Networks"
+subtitle: "BBCC2026 Tutorial: How Does Gene Regulation Differ Between Histology Subgroups?"
 author: |
   **Francesco Cecere**
   *Senior Bioinformatic Researcher*
@@ -167,8 +167,9 @@ knitr::opts_chunk$set(
 
 ```{r libraries, include=FALSE}
 library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
-library(survival)    # Surv(), survfit(), survdiff() for Kaplan-Meier and the log-rank test
-library(broom)       # tidy() converts a survfit object into a tidy tibble
+library(GENIE3)      # random-forest-based gene regulatory network inference
+library(igraph)      # graph objects and topology metrics (density, degree)
+library(visNetwork)  # interactive, drag-able network visualization
 library(plotly)      # interactive plots
 library(DT)          # interactive downloadable tables
 library(knitr)       # kable for simple inline tables
@@ -177,310 +178,301 @@ library(scales)      # axis formatting
 
 # From Module 2
 
-Module 2 produced a genome-wide, ranked list of candidate biomarkers (`results/differential_expression_results.csv`), flagged an unusually broad significant signal, and noted that several top genes look like markers of a specific cell type rather than confirmed carcinogenesis genes — a caveat carried forward, not resolved. This module asks the natural next question.
+Module 2 produced a ranked list of candidate biomarkers (`results/differential_expression_results.csv`) comparing favorable vs. unfavorable histology, and noted that the top genes span diverse functional categories rather than one narrow confound — a moderate, plausible signal carried forward, not resolved. This module asks the natural next question.
 
-**Session plan (≈55 minutes):** why expression alone isn't enough (8 min) → Kaplan-Meier in plain language (12 min) → guided walkthrough on our real dataset (20 min) → light hands-on exploration (10 min) → closing pediatric lens (5 min).
-
-<div class="alert-info">
-**Facilitator note.** This is the last module — energy tends to dip here. The toy Kaplan-Meier example right below is worth slowing down for: if the group can read that one plot confidently, the "real" plot later in the module is just the same reading skill applied to real data.
-</div>
-
-# Part 1 — Why Expression Alone Isn't Enough
-
-A gene can be textbook "significant" — a large fold-change, a tiny adjusted p-value, a clean volcano plot dot — and still be clinically useless. Statistical significance in an expression comparison answers one narrow question: *does this gene's average level differ between two groups in this dataset?* It says nothing about whether that difference has any bearing on what actually happens to a patient over time.
-
-**Reframing the arc:** Module 2 found candidates by asking "is this gene behaving abnormally?" Module 3 asks a different, harder question about those same candidates: **"does it matter?"** — does knowing a patient's expression level for this gene tell us anything about their subsequent clinical course? Answering that requires linking expression back to an actual outcome measured over time, which is exactly what survival analysis is built for.
+**Session plan (≈55 minutes):** why a ranked list isn't the end of the story (8 min) → gene regulatory networks in plain language (12 min) → guided walkthrough on our real dataset (20 min) → light hands-on exploration (10 min) → closing pediatric lens (5 min).
 
 <div class="alert-info">
-**A necessary disclosure before we go further.** As established explicitly in Module 2 (Part 2, the bridge to Module 0), **GSE303967 ships with no linked clinical follow-up data at all** — no survival time, no relapse status, nothing beyond a sample ID and an exposure-group label. A real biomarker-to-outcome analysis like this one is normally run on a dataset such as the NCI's **TARGET** pediatric cancer cohorts (via the GDC Data Portal), which do carry linked survival data. To keep this tutorial fully reproducible on Binder using the one real dataset we have throughout, the rest of this module uses the **real, actual expression values** from GSE303967 together with a **clearly labeled, simulated survival outcome** that we generate ourselves, purely to teach the Kaplan-Meier/log-rank methodology. Every simulated field is named with a `simulated_` prefix and is flagged again at the point it is created. **Nothing in this module should be read as a real finding about real patients** — the workflow is real; the outcome data is not.
+**Facilitator note.** This is the last module — energy tends to dip here. The toy network example right below is worth slowing down for: if the group can read that one plot confidently, the "real" plots later in the module are just the same reading skill applied to real data.
 </div>
 
-# Part 2 — Kaplan-Meier in Plain Language
+# Part 1 — Why a Ranked Gene List Isn't the End of the Story
 
-Forget formulas for a moment. A **Kaplan-Meier curve** answers one question over time: **"what percentage of patients are still alive (or still relapse-free) as of this many months since baseline?"** It starts at 100% (everyone is still event-free at time zero) and steps downward each time a patient in that group has the event — a death, a relapse, whatever the study defines as "the event." Patients who leave the study without the event happening yet (lost to follow-up, or the study simply ended) are **censored**: we know they were event-free up to that point, but not what happened after, and the curve accounts for that correctly rather than treating them as failures.
+Module 2 answered one question, gene by gene: *does this gene's average level differ between favorable and unfavorable histology?* That question treats every gene in isolation — it says nothing about whether two candidate genes **influence each other**, or sit in entirely separate pathways.
 
-**How to read two curves plotted together:** if one group's curve stays consistently higher than the other's for most of the follow-up period, that group is doing better — a larger fraction of them are still event-free at any given time. **The bigger the vertical gap between the two curves, and the longer it persists, the stronger the apparent difference between groups.**
+**Reframing the arc:** Module 2 found candidates by asking "is this gene behaving abnormally?" Module 3 asks a different question about those same candidates: **"how do they work together, and does that change between the two histology groups?"** A single gene's p-value cannot answer that — it requires looking at the candidate genes **as a system**, which is exactly what a gene regulatory network does.
 
-```{r toy-km-illustration, echo=TRUE, fig.height=5}
-# A purely illustrative toy example — generic "Group A/B", not tied to any
-# gene — just to practice reading a KM plot before using real expression data.
+<div class="alert-info">
+**What we're building toward.** We will infer two separate networks among Module 2's top candidate genes — one using only the 82 favorable-histology samples, one using only the 42 unfavorable-histology samples — and then ask: do the same genes act as regulatory "hubs" in both networks, or does the wiring rearrange between the two histology groups? Unlike Module 3's earlier simulated-survival approach in a previous version of this tutorial, every number in this module comes from real TARGET-WT expression data — nothing here is simulated.
+</div>
+
+# Part 2 — Gene Regulatory Networks in Plain Language
+
+Forget algorithms for a moment. A **gene regulatory network (GRN)** is just a diagram: each **node** is a gene, and an **edge** between two genes means "knowing one gene's expression level helps predict the other's across these samples" — a candidate regulatory relationship, not a proven direct biochemical interaction.
+
+**How do we find these edges?** This module uses **GENIE3**, a widely used method that, for every gene in turn, trains a random forest to predict that gene's expression from all the *other* genes' expression — then asks which of those other genes turned out to be useful predictors. A gene that is a strong, consistent predictor of many other genes becomes a **hub**: visually, a node with many edges connecting to it.
+
+```{r toy-grn-illustration, echo=TRUE, fig.height=5}
+# A purely illustrative toy example: one "hub" gene (HUB1) whose expression
+# directly drives two target genes, plus two unrelated genes with no real
+# relationship to anything -- just to practice reading a network diagram
+# before using real expression data.
+set.seed(42)
+n_samples_toy <- 24
+hub_expr <- rnorm(n_samples_toy, mean = 5, sd = 1.5)
+
+toy_expr <- tibble(
+  HUB1     = hub_expr,
+  TARGET_A = 0.8 * hub_expr + rnorm(n_samples_toy, sd = 0.4),
+  TARGET_B = 0.7 * hub_expr + rnorm(n_samples_toy, sd = 0.5),
+  OTHER_C  = rnorm(n_samples_toy, mean = 5, sd = 1),
+  OTHER_D  = rnorm(n_samples_toy, mean = 5, sd = 1)
+)
+
+# GENIE3 expects genes as rows, samples as columns -- the transpose of the
+# usual tidy layout.
+toy_matrix <- t(as.matrix(toy_expr))
+
 set.seed(1)
-toy_data <- tibble(
-  group = rep(c("Group A", "Group B"), each = 20),
-  time  = c(rexp(20, rate = 0.03), rexp(20, rate = 0.08)),
-) %>%
-  mutate(time = pmin(time, 24), event = as.integer(time < 24))
-
-toy_fit <- survfit(Surv(time, event) ~ group, data = toy_data)
-toy_km <- tidy(toy_fit) %>% mutate(group = str_remove(strata, "group="))
-
-p_toy <- toy_km %>%
-  ggplot(aes(x = time, y = estimate, color = group)) +
-  geom_step(linewidth = 1) +
-  scale_y_continuous(labels = percent, limits = c(0, 1)) +
-  scale_color_manual(values = c("Group A" = "#2980b9", "Group B" = "#e74c3c")) +
-  labs(x = "Time (months)", y = "% still event-free", color = NULL,
-       title = "How to read a Kaplan-Meier plot (illustrative toy data)") +
-  theme_minimal(base_size = 11)
-
-ggplotly(p_toy)
+toy_weights <- GENIE3(toy_matrix, nCores = 1, verbose = FALSE)
+toy_edges <- getLinkList(toy_weights, threshold = 0) %>%
+  as_tibble() %>%
+  arrange(desc(weight)) %>%
+  slice_head(n = 8)
 ```
 
-The **log-rank test** is simply the formal statistical test for "are these two curves actually different, or could a gap this size have happened by chance alone?" — it produces a single p-value summarizing the whole curve comparison, not just one time point.
+```{r verify-toy, echo=TRUE}
+kable(toy_edges, caption = "Top 8 inferred edges in the toy example, ranked by GENIE3 weight.")
+```
+
+```{r plot-toy-network, fig.height=5}
+toy_graph <- graph_from_data_frame(toy_edges %>% select(regulatoryGene, targetGene, weight), directed = TRUE)
+
+visIgraph(toy_graph, idToLabel = TRUE) %>%
+  visNodes(color = list(background = "#2980b9", border = "#1a5276", highlight = "#e74c3c")) %>%
+  visEdges(arrows = "to", color = list(color = "#8e44ad", opacity = 0.6)) %>%
+  visOptions(highlightNearest = TRUE) %>%
+  visPhysics(stabilization = FALSE)
+```
+
+<div class="alert-info">
+**How to read this.** `HUB1` should show up with edges to `TARGET_A` and `TARGET_B` (the genes we built to actually depend on it) — exactly the relationship GENIE3 was able to recover from the data, with no information about which gene we *intended* as the hub. `OTHER_C` and `OTHER_D` are independent random noise and should mostly connect to each other weakly or not be hub-like at all. Drag any node to rearrange the layout, and hover a node to highlight just its direct connections.
+</div>
 
 # Part 3 — Guided Walkthrough on Our Real Dataset
 
-We now build exactly this kind of comparison using real GSE303967 expression values, split into "High" vs "Low" groups by a candidate gene from Module 2 — with the simulated outcome disclosed in Part 1 attached.
+We now infer two real networks — one per histology group — among Module 2's top candidate genes, using real TARGET-WT expression throughout.
 
 ```{r load-data, echo=TRUE}
-# Reload the real differential expression results, count matrix, and metadata.
+# Reload the real differential expression results, expression matrix, and metadata.
 de_results <- read_csv("results/differential_expression_results.csv", show_col_types = FALSE)
-counts_raw <- read_csv("data/GSE303967_normalized_counts_All_Samples.csv", show_col_types = FALSE) %>%
-  rename(gene_symbol = 1)
+counts_raw <- read_csv("data/TARGET_WT_gene_expression_tpm.csv", show_col_types = FALSE) %>%
+  rename(gene_symbol = gene_name)
 sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
 
-# The index gene: the single top candidate from Module 2. Its REAL expression
-# values are what we use throughout — only the outcome is simulated.
-index_gene <- de_results %>% slice_head(n = 1) %>% pull(gene_symbol)
-cat("Index gene (top Module 2 candidate):", index_gene, "\n")
+# Candidate panel: the top 150 genes from Module 2's ranking. A network over
+# all ~14,000 tested genes would be both unreadable and too slow to fit live;
+# restricting to the strongest candidates keeps both the plot and the
+# runtime workshop-sized.
+n_top_genes <- 150
+top_genes <- de_results %>% slice_head(n = n_top_genes) %>% pull(gene_symbol)
+cat("Candidate panel size:", length(top_genes), "genes\n")
 ```
 
-```{r build-expression-table, echo=TRUE}
-# Real, measured log2 expression of the index gene for every real sample.
-index_expr <- counts_raw %>%
-  filter(gene_symbol == index_gene) %>%
-  pivot_longer(-gene_symbol, names_to = "sample_id", values_to = "count") %>%
-  mutate(log2_count = log2(count + 1)) %>%
-  select(sample_id, log2_count) %>%
-  left_join(sample_metadata, by = "sample_id")
+```{r build-matrices, echo=TRUE}
+# Build one genes x samples matrix of log2(TPM + 1) for the candidate panel,
+# then split it into a favorable-only and an unfavorable-only matrix.
+panel_long <- counts_raw %>%
+  pivot_longer(-gene_symbol, names_to = "case_submitter_id", values_to = "tpm") %>%
+  filter(gene_symbol %in% top_genes) %>%
+  mutate(log2_tpm = log2(tpm + 1))
 
-cat("Samples with expression data:", nrow(index_expr), "\n")
-cat("Any missing expression values:", sum(is.na(index_expr$log2_count)), "\n")
+panel_wide <- panel_long %>%
+  select(gene_symbol, case_submitter_id, log2_tpm) %>%
+  pivot_wider(names_from = case_submitter_id, values_from = log2_tpm)
+
+panel_matrix <- as.matrix(panel_wide[, -1])
+rownames(panel_matrix) <- panel_wide$gene_symbol
+
+fav_ids   <- sample_metadata %>% filter(histologic_subtype == "Favorable")   %>% pull(case_submitter_id)
+unfav_ids <- sample_metadata %>% filter(histologic_subtype == "Unfavorable") %>% pull(case_submitter_id)
+
+matrix_favorable   <- panel_matrix[, colnames(panel_matrix) %in% fav_ids]
+matrix_unfavorable <- panel_matrix[, colnames(panel_matrix) %in% unfav_ids]
 ```
 
-```{r simulate-outcome, echo=TRUE}
-# --- SIMULATED SURVIVAL OUTCOME — disclosed in Part 1, not a real finding ---
-# We generate a synthetic time-to-event outcome per real sample from an
-# exponential-hazard model where the hazard depends on this sample's real,
-# z-scored index-gene expression: higher expression -> higher simulated
-# hazard (shorter simulated_time_months, more likely simulated_event = 1).
-set.seed(20260909)
-z_index <- as.numeric(scale(index_expr$log2_count))
-beta <- 0.7               # simulated effect size on the log-hazard scale
-baseline_hazard <- 0.04   # simulated baseline hazard per month
-simulated_hazard <- baseline_hazard * exp(beta * z_index)
-true_event_time <- rexp(nrow(index_expr), rate = simulated_hazard)
-follow_up_limit <- 36     # simulated administrative censoring at 36 months
+```{r verify-matrices, echo=TRUE}
+cat("Favorable matrix:", nrow(matrix_favorable), "genes x", ncol(matrix_favorable), "samples\n")
+cat("Unfavorable matrix:", nrow(matrix_unfavorable), "genes x", ncol(matrix_unfavorable), "samples\n")
+cat("Any missing values:", any(is.na(matrix_favorable)) || any(is.na(matrix_unfavorable)), "\n")
+```
 
-survival_data <- index_expr %>%
+## Running GENIE3, Once per Histology Group
+
+```{r run-genie3, echo=TRUE}
+# GENIE3 uses random forests internally, so a fixed seed is required for a
+# reproducible knit -- without it, re-running this chunk would give slightly
+# different edge weights every time, breaking the "numbers you can trust"
+# standard used throughout this tutorial.
+set.seed(20261013)
+weights_favorable <- GENIE3(matrix_favorable, nCores = 1, verbose = FALSE)
+
+set.seed(20261013)
+weights_unfavorable <- GENIE3(matrix_unfavorable, nCores = 1, verbose = FALSE)
+```
+
+```{r build-edge-lists, echo=TRUE}
+# Keep only the strongest 300 edges per network -- a weight matrix has one
+# entry per ordered gene pair (150 x 150 = 22,500 here), almost all of them
+# negligible noise; the top edges are where the real signal lives.
+n_top_edges <- 300
+
+edges_favorable <- getLinkList(weights_favorable, threshold = 0) %>%
+  as_tibble() %>%
+  arrange(desc(weight)) %>%
+  slice_head(n = n_top_edges)
+
+edges_unfavorable <- getLinkList(weights_unfavorable, threshold = 0) %>%
+  as_tibble() %>%
+  arrange(desc(weight)) %>%
+  slice_head(n = n_top_edges)
+```
+
+```{r verify-edges, echo=TRUE}
+cat("Favorable network: top", nrow(edges_favorable), "edges, weight range",
+    round(min(edges_favorable$weight), 4), "to", round(max(edges_favorable$weight), 4), "\n")
+cat("Unfavorable network: top", nrow(edges_unfavorable), "edges, weight range",
+    round(min(edges_unfavorable$weight), 4), "to", round(max(edges_unfavorable$weight), 4), "\n")
+```
+
+## Visualizing Both Networks
+
+```{r build-graphs, echo=TRUE}
+# Build an igraph object per group, purely from the top-edge list -- the
+# same two columns (regulatoryGene, targetGene) that defined the toy example.
+graph_favorable   <- graph_from_data_frame(edges_favorable %>% select(regulatoryGene, targetGene, weight), directed = TRUE)
+graph_unfavorable <- graph_from_data_frame(edges_unfavorable %>% select(regulatoryGene, targetGene, weight), directed = TRUE)
+```
+
+```{r verify-graphs, echo=TRUE}
+cat("Favorable network: ", vcount(graph_favorable), "nodes,", ecount(graph_favorable),
+    "edges, density", round(edge_density(graph_favorable), 4), "\n")
+cat("Unfavorable network: ", vcount(graph_unfavorable), "nodes,", ecount(graph_unfavorable),
+    "edges, density", round(edge_density(graph_unfavorable), 4), "\n")
+```
+
+```{r plot-network-favorable, fig.height=7}
+visIgraph(graph_favorable, idToLabel = TRUE) %>%
+  visNodes(color = list(background = "#2980b9", border = "#1a5276", highlight = "#e74c3c")) %>%
+  visEdges(arrows = "to", color = list(color = "#2980b9", opacity = 0.4)) %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visPhysics(stabilization = FALSE) %>%
+  visLayout(randomSeed = 1)
+```
+
+```{r plot-network-unfavorable, fig.height=7}
+visIgraph(graph_unfavorable, idToLabel = TRUE) %>%
+  visNodes(color = list(background = "#e74c3c", border = "#a93226", highlight = "#2980b9")) %>%
+  visEdges(arrows = "to", color = list(color = "#e74c3c", opacity = 0.4)) %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visPhysics(stabilization = FALSE) %>%
+  visLayout(randomSeed = 1)
+```
+
+<div class="alert-info">
+**How to read this, same skill as the toy example.** Use the dropdown above either plot to jump straight to a specific gene and see only its direct connections highlighted. A gene with many edges in one network but few (or none) in the other is a candidate for **regulatory rewiring** between favorable and unfavorable histology — a different kind of finding than Module 2's per-gene expression difference, and one that per-gene testing alone cannot see.
+</div>
+
+```{r export-networks, echo=TRUE}
+# Persist both edge lists for anyone who wants the complete top-edge tables.
+dir.create("results", showWarnings = FALSE)
+write_csv(edges_favorable, "results/gene_network_favorable_edges.csv")
+write_csv(edges_unfavorable, "results/gene_network_unfavorable_edges.csv")
+
+cat("results/gene_network_favorable_edges.csv written with", nrow(edges_favorable), "rows.\n")
+cat("results/gene_network_unfavorable_edges.csv written with", nrow(edges_unfavorable), "rows.\n")
+```
+
+# Part 4 — Light Hands-On: Comparing the Two Networks
+
+A visual side-by-side is a good start, but "does the wiring change?" deserves an actual number. This section builds two comparisons directly from the two edge lists already computed in Part 3: **how many top edges are shared** between the two networks, and **which genes are hubs** in one group but not the other.
+
+```{r overlap-by-cutoff, echo=TRUE}
+# Re-rank both edge lists and compare at several cutoffs, so "95 shared out
+# of the top 300" can be seen in context -- is overlap roughly constant as
+# the cutoff grows, or does it change sharply?
+cutoffs <- c(50, 100, 200, 300)
+
+edge_pair <- function(df) paste(df$regulatoryGene, df$targetGene)
+
+overlap_table <- tibble(top_n_edges = cutoffs) %>%
   mutate(
-    simulated_time_months = pmin(true_event_time, follow_up_limit),
-    simulated_event       = as.integer(true_event_time <= follow_up_limit)
+    shared_edges = map_dbl(top_n_edges, function(n) {
+      fav_pairs   <- edge_pair(edges_favorable %>% slice_head(n = n))
+      unfav_pairs <- edge_pair(edges_unfavorable %>% slice_head(n = n))
+      length(intersect(fav_pairs, unfav_pairs))
+    }),
+    pct_shared = round(100 * shared_edges / top_n_edges, 1)
   )
 ```
 
-```{r verify-simulated-outcome, echo=TRUE}
-cat("Simulated events observed:", sum(survival_data$simulated_event),
-    "out of", nrow(survival_data), "samples\n")
-cat("Simulated censoring rate:",
-    scales::percent(mean(survival_data$simulated_event == 0)), "\n")
-cat("Median simulated follow-up (months):", round(median(survival_data$simulated_time_months), 1), "\n")
+```{r table-overlap, echo=TRUE}
+kable(overlap_table, caption = "Shared top edges between the favorable and unfavorable networks, at increasing cutoffs.")
 ```
 
-## Splitting Into High vs. Low Expression
+<div class="alert-info">
+**Reading this table.** If the two networks were identical, every row would show 100% shared. If they shared nothing at all, every row would show 0%. The real answer sits in between — a real, partial rewiring of the regulatory relationships among these candidate genes between favorable and unfavorable histology, not a wholesale replacement and not no change at all.
+</div>
 
-```{r median-split, echo=TRUE}
-# The simplest possible split: above vs. below the median real expression
-# value for the index gene. Ties at the median are broken toward "Low" —
-# the same convention used consistently by the Part 4 explorer widget below,
-# so the two sections' median-split results agree exactly.
-median_cut <- median(survival_data$log2_count)
-survival_data <- survival_data %>%
-  mutate(expr_group = if_else(log2_count > median_cut, "High", "Low"))
+## Hub Genes: Shared vs. Histology-Specific
 
-cat("Samples per group:\n")
-print(count(survival_data, expr_group))
+```{r hub-genes, echo=TRUE}
+# A gene's out-degree here -- how many times it appears as the regulatorygene
+# in the top edge list -- is a simple, transparent stand-in for "how
+# hub-like is this gene in this network." Compare the top 5 hubs per group.
+hubs_favorable <- edges_favorable %>%
+  count(regulatoryGene, name = "out_degree") %>%
+  arrange(desc(out_degree)) %>%
+  slice_head(n = 5) %>%
+  mutate(histology = "Favorable")
+
+hubs_unfavorable <- edges_unfavorable %>%
+  count(regulatoryGene, name = "out_degree") %>%
+  arrange(desc(out_degree)) %>%
+  slice_head(n = 5) %>%
+  mutate(histology = "Unfavorable")
+
+hub_comparison <- bind_rows(hubs_favorable, hubs_unfavorable)
 ```
 
-```{r fit-km, echo=TRUE}
-# Fit the Kaplan-Meier estimator per group and tidy it with broom, exactly
-# as t.test() results were tidied in Module 2 — same pattern, new model type.
-km_fit <- survfit(Surv(simulated_time_months, simulated_event) ~ expr_group, data = survival_data)
-km_tidy <- tidy(km_fit) %>% mutate(expr_group = str_remove(strata, "expr_group="))
-
-logrank_test <- survdiff(Surv(simulated_time_months, simulated_event) ~ expr_group, data = survival_data)
-logrank_p <- pchisq(logrank_test$chisq, df = 1, lower.tail = FALSE)
+```{r verify-hubs, echo=TRUE}
+shared_hubs <- intersect(hubs_favorable$regulatoryGene, hubs_unfavorable$regulatoryGene)
+cat("Top-5 hub genes shared between both networks:", paste(shared_hubs, collapse = ", "), "\n")
+cat("Favorable-only top-5 hubs:", paste(setdiff(hubs_favorable$regulatoryGene, hubs_unfavorable$regulatoryGene), collapse = ", "), "\n")
+cat("Unfavorable-only top-5 hubs:", paste(setdiff(hubs_unfavorable$regulatoryGene, hubs_favorable$regulatoryGene), collapse = ", "), "\n")
 ```
 
-```{r verify-km, echo=TRUE}
-cat("KM curve rows (event/censoring steps):", nrow(km_tidy), "\n")
-cat("Log-rank p-value (", index_gene, ", median split):", signif(logrank_p, 4), "\n")
-```
-
-```{r plot-km, fig.height=6}
-p_km <- km_tidy %>%
-  ggplot(aes(x = time, y = estimate, color = expr_group)) +
-  geom_step(linewidth = 1) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = expr_group), alpha = 0.12, color = NA) +
-  scale_y_continuous(labels = percent, limits = c(0, 1)) +
-  scale_color_manual(values = c(High = "#e74c3c", Low = "#2980b9")) +
-  scale_fill_manual(values = c(High = "#e74c3c", Low = "#2980b9")) +
-  labs(x = "Simulated time (months)", y = "% simulated-event-free",
-       color = paste(index_gene, "expression"), fill = paste(index_gene, "expression"),
-       title = paste0(index_gene, " — High vs. Low expression (simulated outcome), log-rank p = ", signif(logrank_p, 3))) +
+```{r plot-hub-comparison, fig.height=5}
+p_hubs <- hub_comparison %>%
+  ggplot(aes(x = fct_reorder(regulatoryGene, out_degree), y = out_degree, fill = histology)) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.6) +
+  coord_flip() +
+  scale_fill_manual(values = c(Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
+  labs(x = NULL, y = "Out-degree (top 300 edges)",
+       title = "Top 5 hub genes per histology group") +
   theme_minimal(base_size = 11)
 
-ggplotly(p_km)
+ggplotly(p_hubs)
 ```
 
 <div class="alert-info">
-**Keep the connection to Module 2 explicit.** This is the same `r nrow(survival_data)` real samples, split by the real expression of the same top candidate gene Module 2 flagged — the only new ingredient is the simulated outcome attached in Part 1. In a real study with real linked survival data (a TARGET-style cohort, for instance), this exact code — `survfit()`, `tidy()`, `survdiff()` — is what turns a Module-2-style candidate list into a statement about clinical relevance.
+**What to look for.** A gene appearing as a top hub in **both** bars is a candidate "core" regulator that stays important regardless of histology. A gene that is a top hub in only one group is a more interesting candidate for histology-specific rewiring — exactly the kind of result a per-gene differential expression test (Module 2) cannot reveal on its own, because a gene can be a network hub without itself being significantly differentially expressed.
 </div>
 
-# Part 4 — Light Hands-On: Guided Exploration
-
-Change the **gene** or the **split threshold** below and watch the curve update. The dropdown selects among the index gene (`r index_gene`, which the simulated outcome above was built from) and two genes drawn from the *opposite* end of Module 2's ranking (`p_adj` near 1, i.e. not flagged as candidates at all), each combined with two ways of splitting High vs. Low.
-
-<div class="alert-info">
-**A note on how this widget works, compared to Module 2's.** Module 2's explorer used `crosstalk` to *filter* rows of an already-drawn plot and table. A Kaplan-Meier curve cannot simply be filtered this way — changing the gene or the threshold changes *who is in which group*, which means the whole curve has to be **recomputed**, not just re-shown. So this widget instead pre-computes every gene × threshold combination and uses Plotly's built-in dropdown menu to switch which pre-drawn curve pair is visible. The experience is the same — pick an option, watch the result update instantly, no code to run — but the underlying mechanism is necessarily different.
-</div>
-
-```{r explorer-setup, echo=TRUE}
-# Two "control" genes: the least significant genes from Module 2 (p_adj
-# near 1), i.e. genes with no real evidence of differing between NNK and WT.
-control_genes <- de_results %>% slice_tail(n = 2) %>% pull(gene_symbol)
-explorer_genes <- c(index_gene, control_genes)
-cat("Explorer genes:", paste(explorer_genes, collapse = ", "), "\n")
-cat("Control gene p_adj values:", paste(signif(de_results %>% filter(gene_symbol %in% control_genes) %>% pull(p_adj), 3), collapse = ", "), "\n")
-
-# Real expression for all four explorer genes, joined to the same simulated
-# outcome defined once in Part 3 (the outcome does not change per gene).
-explorer_expr <- counts_raw %>%
-  filter(gene_symbol %in% explorer_genes) %>%
-  pivot_longer(-gene_symbol, names_to = "sample_id", values_to = "count") %>%
-  mutate(log2_count = log2(count + 1)) %>%
-  select(gene_symbol, sample_id, log2_count) %>%
-  pivot_wider(names_from = gene_symbol, values_from = log2_count) %>%
-  left_join(survival_data %>% select(sample_id, simulated_time_months, simulated_event), by = "sample_id")
-```
-
-```{r explorer-compute, echo=TRUE}
-# Two threshold options per gene: median split, and a more extreme tertile
-# split that excludes an ambiguous "middle" group of samples.
-thresholds <- tibble(
-  threshold_label = c("Median split (50/50)",
-                       "Tertile split (33/33, middle excluded)"),
-  lower_q = c(0.5, 1/3),
-  upper_q = c(0.5, 2/3)
-)
-
-combos <- expand_grid(gene = explorer_genes, threshold_label = thresholds$threshold_label) %>%
-  left_join(thresholds, by = "threshold_label") %>%
-  mutate(combo_id = paste(gene, threshold_label, sep = " — "))
-
-# For each gene x threshold combination: split into High/Low, fit the KM
-# curve, and run the log-rank test. No custom function is defined beyond a
-# small named helper reused via purrr::pmap, consistent with the rest of
-# this tutorial's style.
-fit_one_combo <- function(gene, lower_q, upper_q) {
-  x <- explorer_expr[[gene]]
-  low_cut <- quantile(x, lower_q)
-  high_cut <- quantile(x, upper_q)
-  split_data <- explorer_expr %>%
-    mutate(expr_group = case_when(
-      x <= low_cut  ~ "Low",
-      x >= high_cut ~ "High",
-      TRUE ~ NA_character_
-    )) %>%
-    filter(!is.na(expr_group))
-  fit <- survfit(Surv(simulated_time_months, simulated_event) ~ expr_group, data = split_data)
-  lr  <- survdiff(Surv(simulated_time_months, simulated_event) ~ expr_group, data = split_data)
-  list(
-    km   = tidy(fit) %>% mutate(expr_group = str_remove(strata, "expr_group=")),
-    pval = pchisq(lr$chisq, df = 1, lower.tail = FALSE),
-    n    = nrow(split_data)
-  )
-}
-
-combo_results <- pmap(list(combos$gene, combos$lower_q, combos$upper_q), fit_one_combo)
-all_km    <- map2_dfr(combo_results, combos$combo_id, ~ mutate(.x$km, combo_id = .y))
-combo_pvals <- combos %>%
-  mutate(logrank_p = map_dbl(combo_results, "pval"), n_samples = map_dbl(combo_results, "n")) %>%
-  select(combo_id, gene, threshold_label, n_samples, logrank_p)
-```
-
-```{r verify-explorer, echo=TRUE}
-cat("Gene x threshold combinations computed:", nrow(combo_pvals), "\n")
-```
-
-```{r table-explorer-pvalues}
-kable(combo_pvals %>% mutate(logrank_p = signif(logrank_p, 3)),
-      caption = "Log-rank p-value for every gene x threshold combination available in the widget below.")
-```
-
-```{r km-explorer-widget, fig.height=6}
-# Build one Plotly figure containing every combination's two curves (High,
-# Low), with only the first combination visible at load; the dropdown swaps
-# which pair of traces is shown and updates the title with that combo's
-# log-rank p-value.
-combo_ids <- unique(all_km$combo_id)
-
-fig <- plot_ly()
-trace_lookup <- list()
-for (cid in combo_ids) {
-  for (grp in c("High", "Low")) {
-    d <- all_km %>% filter(combo_id == cid, expr_group == grp)
-    fig <- fig %>% add_trace(
-      x = d$time, y = d$estimate, type = "scatter", mode = "lines",
-      line = list(shape = "hv", color = if (grp == "High") "#e74c3c" else "#2980b9"),
-      name = grp, legendgroup = cid,
-      visible = (cid == combo_ids[1]), showlegend = (cid == combo_ids[1])
-    )
-    trace_lookup[[length(trace_lookup) + 1]] <- list(combo_id = cid, group = grp)
-  }
-}
-
-dropdown_buttons <- map(combo_ids, function(cid) {
-  visible_vec <- map_lgl(trace_lookup, ~ .x$combo_id == cid)
-  p <- combo_pvals %>% filter(combo_id == cid) %>% pull(logrank_p)
-  list(method = "update",
-       args = list(list(visible = visible_vec, showlegend = visible_vec),
-                    list(title = paste0(cid, " — log-rank p = ", signif(p, 3)))),
-       label = cid)
-})
-
-fig %>% layout(
-  updatemenus = list(list(y = 1.25, x = 0, xanchor = "left", buttons = dropdown_buttons)),
-  title = paste0(combo_ids[1], " — log-rank p = ", signif(combo_pvals$logrank_p[1], 3)),
-  yaxis = list(title = "% simulated-event-free", tickformat = ".0%", range = c(0, 1)),
-  xaxis = list(title = "Simulated time (months)")
-)
-```
-
-<div class="alert-info">
-**What to notice.** Selecting `r index_gene` (any threshold) should consistently show a visible gap and a low log-rank p-value, since it is the gene the simulated outcome was actually built from. The three control genes should mostly show overlapping curves and non-significant p-values, as expected — **except** watch what happens if you check the p-value table above closely: at least one control gene reaches `p < 0.05` at one particular threshold, purely by chance. This is not a real finding — it is exactly the **threshold-shopping / multiple-comparisons risk** Module 2 already warned about: if you try enough gene-threshold combinations on data with no real relationship, one of them will look "significant" sooner or later. The fix is the same one used throughout this tutorial: decide your threshold *before* looking at the results, or correct for the number of comparisons made, rather than reporting whichever combination happened to look best.
-</div>
-
-```{r export-survival-results, echo=TRUE}
-# Persist both the combination-level results and the simulated dataset used
-# to produce them, clearly labeled, for anyone who wants to reuse them.
-dir.create("results", showWarnings = FALSE)
-write_csv(combo_pvals, "results/survival_logrank_results.csv")
-write_csv(survival_data, "results/simulated_survival_dataset.csv")
-
-cat("results/survival_logrank_results.csv written with", nrow(combo_pvals), "rows.\n")
-cat("results/simulated_survival_dataset.csv written with", nrow(survival_data), "rows.\n")
+```{r export-hubs, echo=TRUE}
+write_csv(hub_comparison, "results/gene_network_hub_comparison.csv")
+cat("results/gene_network_hub_comparison.csv written with", nrow(hub_comparison), "rows.\n")
 ```
 
 # Part 5 — Closing Pediatric Lens
 
-This module's Kaplan-Meier curves were fit on **`r nrow(survival_data)` samples**, with only **`r sum(survival_data$simulated_event)` simulated events** to work with. That is a genuinely small number of events for a survival analysis, and it is not an artifact of using simulated data — it is a realistic reflection of pediatric cohort sizes. A handful of events is exactly what makes Kaplan-Meier curves **statistically fragile**:
+This module's networks were inferred on **`r ncol(matrix_favorable)` favorable** and **only `r ncol(matrix_unfavorable)` unfavorable** samples. That asymmetry is not a technical inconvenience — it is the pediatric-rare-disease problem from every earlier module, now showing up as a network-stability issue:
 
-- **Wide confidence intervals, especially late in follow-up.** Notice in Part 3's plot how the shaded confidence band widens toward the right-hand side of the curve — every step down after an event happening removes a patient from the risk set, so the remaining estimate is based on fewer and fewer people, and its uncertainty grows accordingly.
-- **Sensitivity to a handful of events.** With `r sum(survival_data$simulated_event)` events split across two groups, one or two events happening slightly earlier or later than they did could visibly shift where a curve sits — a single patient can measurably change the picture in a way that would be invisible in a hundreds-of-events adult cancer trial.
-- **This is precisely why dedicated pediatric consortia exist.** Programs like the NCI's TARGET pool patients across many institutions specifically because no single pediatric oncology center sees enough cases of a given rare tumor type in a reasonable timeframe to produce a statistically stable survival curve on its own — the same small-numbers problem behind every module in this tutorial, now showing up in its clinical-outcome form.
+- **Network inference needs more samples than a single t-test, not fewer.** A per-gene test (Module 2) estimates one mean difference per gene. A network estimates **relationships between every pair of genes** — with `r n_top_genes` candidate genes, that is thousands of relationships being estimated from just `r ncol(matrix_unfavorable)` unfavorable-histology samples. The unfavorable network here is built on real data, but it is the less statistically stable of the two, and should be read with that firmly in mind.
+- **A "hub" found in `r ncol(matrix_unfavorable)` samples deserves real skepticism before being called a finding.** With this few samples, re-sampling even a handful of patients could plausibly shift which gene looks like a hub. The honest framing from Part 4 — "a candidate for rewiring," not "proof of rewiring" — matters even more here than the comparable caveat did for Module 2's p-values.
+- **This is precisely why dedicated pediatric consortia exist.** The NCI's TARGET program pools patients across many institutions specifically because no single pediatric oncology center sees enough anaplastic Wilms tumor cases in a reasonable timeframe to produce a stable network estimate (or even a stable t-test) on its own — the same small-numbers problem behind every module in this tutorial, now showing up in its network-inference form.
 
-Real biomarker validation in pediatric oncology has to hold both of these facts at once: a wide confidence interval is not a reason to ignore a promising signal, but it is a reason not to treat one small cohort's curve as a settled answer.
+Real regulatory-network findings in pediatric oncology need the same thing a real biomarker candidate needs: independent validation in another cohort before the wiring difference is treated as established biology rather than a hypothesis worth testing further.
 
 ---
 
@@ -490,20 +482,20 @@ This report covers the following analyses:
 
 | Section | Description |
 |---------|-------------|
-| Part 1 — Why expression alone isn't enough | Reframed the Module 2 → Module 3 arc, and disclosed explicitly that GSE303967 has no real linked survival data, so a simulated outcome is used to teach the methodology. |
-| Part 2 — Kaplan-Meier in plain language | Explained how to read a Kaplan-Meier curve and the log-rank test using a purely illustrative toy example, with no formulas. |
-| Part 3 — Guided walkthrough | Built a simulated survival outcome tied to the real expression of Module 2's top candidate gene, fit and plotted Kaplan-Meier curves for a High/Low median split using `survival`/`broom`, and ran the log-rank test. |
-| Part 4 — Guided exploration | Built a Plotly dropdown-driven explorer across 3 genes x 2 thresholds (6 combinations), and surfaced a genuine false-positive result among the control genes as a live illustration of threshold-shopping risk. |
-| Part 5 — Closing pediatric lens | Used this analysis's own small event count to explain why Kaplan-Meier curves are statistically fragile in pediatric cohorts, and why dedicated multi-institution consortia like TARGET exist. |
+| Part 1 — Why a ranked list isn't the end of the story | Reframed the Module 2 → Module 3 arc: from "is this gene abnormal?" to "how do these genes regulate each other, and does that differ by histology?" |
+| Part 2 — Gene regulatory networks in plain language | Explained the GENIE3 random-forest intuition and how to read a network diagram using a purely illustrative 5-gene toy example with a known hub gene. |
+| Part 3 — Guided walkthrough | Built favorable-only and unfavorable-only expression matrices for Module 2's top 150 candidate genes, ran GENIE3 (seeded for reproducibility) on each, and visualized both networks as interactive, drag-able `visNetwork` graphs. |
+| Part 4 — Comparing the two networks | Computed real top-edge overlap between the two networks across several cutoffs, and compared each group's top-5 hub genes to find shared vs. histology-specific regulators. |
+| Part 5 — Closing pediatric lens | Used the stark favorable/unfavorable sample-size gap to explain why network inference is even more sample-hungry than per-gene testing, and why dedicated consortia like TARGET exist. |
 
 ### Downloadable Outputs
 
-- **Tables**: the gene x threshold p-value table includes a `kable()` static table; the underlying data is also exported to CSV below.
-- **Plots**: the toy KM illustration, the Part 3 KM plot, and the Part 4 dropdown explorer all include a PNG download button via the plotly toolbar (for the explorer, the currently visible combination).
-- **Files**: `results/survival_logrank_results.csv` (log-rank p-value for every gene x threshold combination) and `results/simulated_survival_dataset.csv` (the simulated outcome data used throughout, clearly labeled).
+- **Tables**: the toy-network edge table, edge-overlap-by-cutoff table, and hub-comparison table all render via `kable()`.
+- **Plots**: both `visNetwork` graphs (favorable, unfavorable) are interactive — drag nodes, search by gene via the dropdown, hover to highlight direct connections; the hub-comparison bar chart includes a PNG download button via the plotly toolbar.
+- **Files**: `results/gene_network_favorable_edges.csv`, `results/gene_network_unfavorable_edges.csv` (top 300 edges per histology group), and `results/gene_network_hub_comparison.csv` (top-5 hub genes per group).
 
 <div class="alert-info">
-**Facilitator note.** This is the end of the workshop content. Suggested wrap-up / Q&A: **10 minutes** — a good closing prompt is to ask the group to trace one candidate gene's journey across all four modules: raw column name (Module 0) → QC-passed sample (Module 1) → statistically significant candidate (Module 2) → a claim about outcome that is only as strong as the (here, simulated) data behind it (Module 3).
+**Facilitator note.** This is the end of the workshop content. Suggested wrap-up / Q&A: **10 minutes** — a good closing prompt is to ask the group to trace one candidate gene's journey across all four modules: a real case barcode joined to real clinical histology (Module 0) → a QC-passed sample (Module 1) → a statistically significant candidate (Module 2) → a node in a regulatory network whose connections depend on which histology group it came from (Module 3).
 </div>
 
 ---

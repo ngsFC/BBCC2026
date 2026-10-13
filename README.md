@@ -2,7 +2,7 @@
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ngsFC/BBCC2026/HEAD?urlpath=rstudio)
 
-> This tutorial offers a hands-on introduction to how biological and clinical data are organized, analyzed, and turned into clinically meaningful findings. Starting from the organization of metadata and biobanking, participants follow a real dataset through an expression analysis to identify candidate biomarkers with downstream interpretation. Each module is connected back to rare disease and cancer biology from a pediatric point of view, highlighting what makes them challenging to analyze.
+> This tutorial offers a hands-on introduction to how biological and clinical data are organized, analyzed, and turned into clinically meaningful findings. Starting from the organization of metadata and biobanking, participants follow a real pediatric cancer dataset (TARGET-WT, Wilms tumor) through an expression analysis to identify candidate biomarkers, then infer and compare gene regulatory networks between two real clinical histology subgroups. Each module is connected back to rare disease and cancer biology from a pediatric point of view, highlighting what makes them challenging to analyze.
 
 
 
@@ -24,7 +24,7 @@ This tutorial is designed to be run live as a **4-hour workshop for R/bioinforma
 | 1:35 – 1:45 | Break | 10 min |
 | 1:45 – 2:45 | Module 2 — Expression Analysis & Biomarker Discovery | 60 min |
 | 2:45 – 2:55 | Break | 10 min |
-| 2:55 – 3:50 | Module 3 — Survival Analysis | 55 min |
+| 2:55 – 3:50 | Module 3 — Gene Regulatory Networks | 55 min |
 | 3:50 – 4:00 | Wrap-up & Q&A | 10 min |
 
 ## Modules
@@ -33,18 +33,19 @@ Run the modules **in order** the first time — each one reads a file produced b
 
 | # | File | Title | What it covers |
 |---|------|-------|-----------------|
-| 0 | `00_metadata_and_biobanking.Rmd` | From Raw Files to a Biobank-Grade Sample Sheet | Loading and verifying the raw count matrix, reconstructing a structured sample sheet from column names, checking sample pairing, and discussing biobanking principles for rare pediatric cohorts. |
-| 1 | `01_exploratory_qc.Rmd` | Exploratory Analysis and Quality Control | Library sizes, expression distributions, PCA, and sample-sample correlation — checking whether the data can be trusted before testing anything. |
-| 2 | `02_differential_expression_biomarkers.Rmd` | Expression Analysis and Candidate Biomarker Discovery | Gene filtering, per-gene statistical testing, a volcano plot, and a ranked candidate biomarker table. |
-| 3 | `03_survival_analysis.Rmd` | From Biomarkers to Clinical Outcome: Survival Analysis | Kaplan-Meier curves and the log-rank test, applied to the real GSE303967 expression data with a clearly labeled *simulated* survival outcome (the dataset has no real linked clinical follow-up) — connects Module 2's candidates to the question of whether they relate to a patient outcome, and includes an interactive gene/threshold explorer. |
+| 0 | `00_metadata_and_biobanking.Rmd` | From Raw Files to a Biobank-Grade Sample Sheet | Loading and verifying the real TARGET-WT expression matrix, joining it to a real GDC clinical sheet by case ID (with the join explicitly verified), parsing the real TARGET barcode structure, and discussing biobanking principles for rare pediatric cohorts. |
+| 1 | `01_exploratory_qc.Rmd` | Exploratory Analysis and Quality Control | TPM-sum sanity checks, expression distributions, PCA, and sample-sample correlation — checking whether the data can be trusted before testing anything. |
+| 2 | `02_differential_expression_biomarkers.Rmd` | Expression Analysis and Candidate Biomarker Discovery | Gene filtering, per-gene statistical testing (favorable vs. unfavorable/anaplastic histology), a volcano plot, and a ranked candidate biomarker table. |
+| 3 | `03_survival_analysis.Rmd` | From Biomarkers to Gene Regulatory Networks | Infers a gene regulatory network (GENIE3 + igraph + visNetwork) separately for each histology group over Module 2's top candidate genes, then compares top-edge overlap and hub genes between the two real networks — everything in this module is real data, nothing simulated. |
 
 Each module knits to a self-contained, interactive `.html` report (downloadable tables, interactive plots). Pre-rendered copies are committed under `html/` so the finished reports can be browsed without running anything — open any file in `html/` directly in a browser. These are a snapshot from the last render: if you edit an `.Rmd` and re-knit, regenerate the matching file in `html/` the same way (see below) so the two stay in sync.
 
 ## Data
 
-- **Source**: `data/GSE303967_normalized_counts_All_Samples.csv` — upper-quartile (UQ) normalized RNA-seq counts, GEO accession [GSE303967](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE303967).
-- 45 samples across two groups (`NNK` = exposed/case, `WT` = wild-type/control), 17,616 genes, human (HGNC) gene symbols.
-- `data/sample_metadata.csv` is generated by Module 0, and everything under `results/` is generated by Modules 2 and 3; both are included so later modules can also be explored on their own without re-running earlier ones. `results/simulated_survival_dataset.csv` contains a **simulated** survival outcome, generated for teaching purposes only — GSE303967 itself has no real linked clinical follow-up data (see Module 3).
+- **Source**: **TARGET-WT** (Wilms tumor), from the NCI's TARGET program via the [GDC Data Portal](https://portal.gdc.cancer.gov/projects/TARGET-WT) — real RNA-seq (GDC's STAR-Counts pipeline, TPM-normalized) for 124 real pediatric patients from the Children's Oncology Group's NWTS-5 trial, open-access tier (no login required).
+- `data/TARGET_WT_gene_expression_tpm.csv` — 19,938 protein-coding genes x 124 samples, TPM values, human (HGNC) gene symbols.
+- `data/TARGET_WT_clinical_raw.csv` — the real clinical/demographic sheet pulled from the GDC API (histologic subtype, age at diagnosis, sex, vital status, race, ethnicity): 82 **Favorable** histology, 42 **Unfavorable (anaplastic)** histology.
+- Both files were assembled once by `data-prep/build_target_wt_data.R` (manifest query → download each sample's gene-count file → parse `gene_name`/`tpm_unstranded` → join into one matrix) rather than downloaded live during the workshop, so Binder sessions need no GDC-specific setup. That script is not run by the tutorial itself — it is included only so the data can be audited or rebuilt from scratch. `data/sample_metadata.csv` (the join of the two files above, verified) is generated by Module 0; everything under `results/` is generated by Modules 2 and 3 — both are included so later modules can also be explored on their own without re-running earlier ones.
 
 ## Repository Structure
 
@@ -55,17 +56,21 @@ Each module knits to a self-contained, interactive `.html` report (downloadable 
 ├── 02_differential_expression_biomarkers.Rmd
 ├── 03_survival_analysis.Rmd
 ├── data/
-│   ├── GSE303967_normalized_counts_All_Samples.csv   # raw input
-│   └── sample_metadata.csv                           # produced by Module 0
+│   ├── TARGET_WT_gene_expression_tpm.csv             # raw input: real TPM expression matrix
+│   ├── TARGET_WT_clinical_raw.csv                    # raw input: real GDC clinical sheet
+│   └── sample_metadata.csv                           # produced by Module 0 (verified join of the two above)
 ├── results/
 │   ├── differential_expression_results.csv           # produced by Module 2
-│   ├── survival_logrank_results.csv                  # produced by Module 3
-│   └── simulated_survival_dataset.csv                # produced by Module 3 (simulated outcome, clearly labeled)
+│   ├── gene_network_favorable_edges.csv              # produced by Module 3
+│   ├── gene_network_unfavorable_edges.csv            # produced by Module 3
+│   └── gene_network_hub_comparison.csv               # produced by Module 3
 ├── html/
 │   ├── 00_metadata_and_biobanking.html                        # pre-rendered Module 0
 │   ├── 01_exploratory_qc.html                                 # pre-rendered Module 1
 │   ├── 02_differential_expression_biomarkers.html             # pre-rendered Module 2
 │   └── 03_survival_analysis.html                              # pre-rendered Module 3
+├── data-prep/
+│   └── build_target_wt_data.R                        # one-off script that built data/TARGET_WT_*.csv (not run by the tutorial)
 ├── .binder/
 │   └── Dockerfile     # defines the Binder build environment (see below)
 └── README.md
@@ -86,6 +91,6 @@ Modules must be rendered **in order** (0 → 1 → 2 → 3) the first time, sinc
 
 ## Environment
 
-This repository is built by [repo2docker](https://repo2docker.readthedocs.io/) (the engine behind mybinder.org) from `.binder/Dockerfile`, which starts `FROM rocker/binder:4.4.1` — a base image that already ships RStudio Server correctly configured for Binder's unprivileged container user — and installs the packages required across all four modules (`tidyverse`, `broom`, `plotly`, `DT`, `crosstalk`, `survival`, `knitr`, `scales`, `rmarkdown`) on top of it.
+This repository is built by [repo2docker](https://repo2docker.readthedocs.io/) (the engine behind mybinder.org) from `.binder/Dockerfile`, which starts `FROM rocker/binder:4.4.1` — a base image that already ships RStudio Server correctly configured for Binder's unprivileged container user — and installs the packages required across all four modules (`tidyverse`, `broom`, `plotly`, `DT`, `crosstalk`, `igraph`, `visNetwork`, `knitr`, `scales`, `rmarkdown`, plus the Bioconductor package `GENIE3` via `BiocManager`) on top of it.
 
 An earlier version of this repository used repo2docker's own `runtime.txt` / `install.R` R-buildpack convention instead. That path builds RStudio Server through a different mechanism than `rocker/binder`, and on the current mybinder.org infrastructure it produced a broken `/etc/rstudio/rserver.conf` (`www-user=rstudio-server`), which the unprivileged `jovyan` container user has no permission to satisfy — causing every launch to fail with "could not start rstudio in time" / `Attempt to run server as user 'rstudio-server' ... without privilege`. Building from `rocker/binder` directly sidesteps that broken code path entirely, since RStudio is already correctly configured in the base image before this repository's own build steps ever run.

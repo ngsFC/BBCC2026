@@ -10,7 +10,7 @@
 
 
 
-<meta name="date" content="2026-10-01" />
+<meta name="date" content="2026-10-13" />
 
 <title>Module 0 — From Raw Files to a Biobank-Grade Sample Sheet</title>
 
@@ -78081,7 +78081,7 @@ Biobank-Grade Sample Sheet</h1>
 Analysis Begins</h3>
 <h4 class="author"><p><strong>Francesco Cecere</strong> <em>Senior
 Bioinformatic Researcher</em> AORN Santobono-Pausilipon</p></h4>
-<h4 class="date">01 October 2026</h4>
+<h4 class="date">13 October 2026</h4>
 
 </div>
 
@@ -78236,7 +78236,7 @@ MODULES
 </div>
 <div class="vbox green">
 <div class="vbox-number">
-45
+124
 </div>
 <div class="vbox-label">
 SAMPLES
@@ -78244,15 +78244,15 @@ SAMPLES
 </div>
 <div class="vbox purple">
 <div class="vbox-number">
-17,616
+19,938
 </div>
 <div class="vbox-label">
-GENES (RAW)
+PROTEIN-CODING GENES
 </div>
 </div>
 <div class="vbox red">
 <div class="vbox-number">
-GSE303967
+TARGET-WT
 </div>
 <div class="vbox-label">
 SOURCE DATASET
@@ -78278,8 +78278,8 @@ SOURCE DATASET
 <tr class="odd">
 <td>0</td>
 <td>Metadata &amp; Biobanking</td>
-<td>Turning raw file names into a traceable, biobank-grade sample
-sheet</td>
+<td>Joining a real expression matrix to a real clinical sheet into a
+traceable, biobank-grade sample sheet</td>
 </tr>
 <tr class="even">
 <td>1</td>
@@ -78289,13 +78289,14 @@ sheet</td>
 <tr class="odd">
 <td>2</td>
 <td>Expression Analysis &amp; Biomarker Discovery</td>
-<td>Filtering, per-gene testing, volcano plot, candidate table</td>
+<td>Filtering, per-gene testing (favorable vs. unfavorable histology),
+volcano plot, candidate table</td>
 </tr>
 <tr class="even">
 <td>3</td>
-<td>Downstream Interpretation</td>
-<td>Curated pediatric-cancer gene sets, enrichment testing, clinical
-framing</td>
+<td>Gene Regulatory Networks</td>
+<td>Inferring and comparing gene networks between the two histology
+subgroups</td>
 </tr>
 </tbody>
 </table>
@@ -78313,7 +78314,7 @@ deliberately, since it is also the least technical):</strong> why
 metadata matters (8 min) → what good metadata looks like (7 min) →
 biobank basics (5 min) → hands-on: build &amp; debug a mini biobank
 record (15 min) → plenary debrief (3 min) → closing pediatric lens (2
-min) → applying all of this to the real GSE303967 dataset (10 min).</p>
+min) → applying all of this to the real TARGET-WT dataset (10 min).</p>
 <div class="alert-info">
 <p><strong>Facilitator note.</strong> No R experience is assumed for
 this module — Parts 1-6 are deliberately conceptual (tables to read, not
@@ -78685,8 +78686,8 @@ error in each of the other four records. You do not need R for this part
 <span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>  <span class="st">&quot;PT-2035&quot;</span>,   <span class="st">&quot;2022-07-19&quot;</span>,   <span class="dv">2</span>,          <span class="st">&quot;M&quot;</span>,  <span class="st">&quot;Neuroblastoma&quot;</span>,     <span class="st">&quot;2021-12-05&quot;</span>,     <span class="st">&quot;Tumor tissue&quot;</span>, <span class="st">&quot;Consented&quot;</span></span>
 <span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
 <span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">date_of_birth =</span> <span class="fu">as.Date</span>(date_of_birth), <span class="at">collection_date =</span> <span class="fu">as.Date</span>(collection_date))</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-87fbec108475d249f7f2" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-87fbec108475d249f7f2">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>The mini biobank exercise table — 2 records to complete, 4 records each hiding one error.<\/caption>","data":[["PT-2031","PT-2032","PT-2032","PT-2033","PT-2034","PT-2035"],["2024-01-03","2019-11-22","2016-06-30","2023-05-14","2020-02-08","2022-07-19"],[null,null,8,18,5,2],[null,null,"M","F",null,"M"],[null,null,"Ewing sarcoma","Retinoblastoma","Wilms tumor","Neuroblastoma"],[null,null,"2024-09-10","2024-11-02","2025-03-01","2021-12-05"],[null,null,"Tumor tissue","Tumor tissue","Tumor tissue","Tumor tissue"],[null,null,"Consented","Consented","Consented","Consented"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>patient_id<\/th>\n      <th>date_of_birth<\/th>\n      <th>age_years<\/th>\n      <th>sex<\/th>\n      <th>diagnosis<\/th>\n      <th>collection_date<\/th>\n      <th>sample_type<\/th>\n      <th>consent_status<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":10,"columnDefs":[{"className":"dt-right","targets":2},{"name":"patient_id","targets":0},{"name":"date_of_birth","targets":1},{"name":"age_years","targets":2},{"name":"sex","targets":3},{"name":"diagnosis","targets":4},{"name":"collection_date","targets":5},{"name":"sample_type","targets":6},{"name":"consent_status","targets":7}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-cb6aa155fac0c045f522" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-cb6aa155fac0c045f522">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>The mini biobank exercise table — 2 records to complete, 4 records each hiding one error.<\/caption>","data":[["PT-2031","PT-2032","PT-2032","PT-2033","PT-2034","PT-2035"],["2024-01-03","2019-11-22","2016-06-30","2023-05-14","2020-02-08","2022-07-19"],[null,null,8,18,5,2],[null,null,"M","F",null,"M"],[null,null,"Ewing sarcoma","Retinoblastoma","Wilms tumor","Neuroblastoma"],[null,null,"2024-09-10","2024-11-02","2025-03-01","2021-12-05"],[null,null,"Tumor tissue","Tumor tissue","Tumor tissue","Tumor tissue"],[null,null,"Consented","Consented","Consented","Consented"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>patient_id<\/th>\n      <th>date_of_birth<\/th>\n      <th>age_years<\/th>\n      <th>sex<\/th>\n      <th>diagnosis<\/th>\n      <th>collection_date<\/th>\n      <th>sample_type<\/th>\n      <th>consent_status<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":10,"columnDefs":[{"className":"dt-right","targets":2},{"name":"patient_id","targets":0},{"name":"date_of_birth","targets":1},{"name":"age_years","targets":2},{"name":"sex","targets":3},{"name":"diagnosis","targets":4},{"name":"collection_date","targets":5},{"name":"sample_type","targets":6},{"name":"consent_status","targets":7}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 <div id="case-notes-for-the-two-incomplete-records" class="section level2">
 <h2>Case Notes (for the two incomplete records)</h2>
 <blockquote>
@@ -78868,49 +78869,40 @@ public dataset.</p>
 </div>
 <div id="applying-this-to-a-real-dataset" class="section level1">
 <h1>Applying This to a Real Dataset</h1>
-<p>We now turn to
-<code>data/GSE303967_normalized_counts_All_Samples.csv</code>, a real,
-public count matrix — and immediately run into a very familiar problem:
-<strong>it comes with almost no metadata at all</strong>, just column
-headers. Everything from Parts 1-3 about <em>why</em> that is a problem,
-and everything from Part 4 about <em>how</em> to check for damage
-systematically, applies directly.</p>
+<p>We now turn to real pediatric cancer data from the NCI’s
+<strong>TARGET</strong> program (via the GDC Data Portal): a gene
+expression matrix and a separate real clinical sheet for
+<strong>TARGET-WT</strong> — Wilms tumor, the most common pediatric
+kidney cancer, sequenced through the Children’s Oncology Group’s NWTS-5
+trial. Unlike a toy exercise, these two files were never designed to be
+read together by us; joining them correctly, and verifying that join,
+<em>is</em> the metadata task.</p>
 </div>
-<div id="loading-the-raw-count-matrix" class="section level1">
-<h1>Loading the Raw Count Matrix</h1>
+<div id="loading-the-raw-expression-matrix" class="section level1">
+<h1>Loading the Raw Expression Matrix</h1>
 <p>The starting point of almost every genomics analysis is a
 <strong>count matrix</strong>: rows are genes, columns are samples, and
 cells hold expression values. Here we work with
-data/GSE303967_normalized_counts_All_Samples.csv, downloaded from the
-public GEO series <strong>GSE303967</strong>. Note that we could not
-independently confirm the full experimental design (tissue, exact NNK
-exposure protocol) from the GEO record at the time of writing — this is
-flagged explicitly rather than assumed, in line with the rule that
-nothing is stated as fact unless it has been verified from the data or
-the source itself.</p>
-<p>What we <em>can</em> verify directly from the file is loaded and
-checked below: its dimensions, whether gene identifiers are unique,
-whether there are missing values, and whether the gene naming convention
-tells us anything about species.</p>
-<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="co"># Read the raw count matrix exactly as distributed on GEO.</span></span>
-<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="co"># The first column (unnamed in the CSV header) holds gene symbols, not a numeric sample.</span></span>
+data/TARGET_WT_gene_expression_tpm.csv — TPM (transcripts per million)
+gene expression values for protein-coding genes, downloaded from the GDC
+Data Portal, project <code>TARGET-WT</code>, open-access tier (no
+controlled-access login required for expression data).</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a><span class="co"># Read the expression matrix exactly as exported from the GDC STAR-Counts</span></span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="co"># pipeline (TPM-normalized, one row per protein-coding gene).</span></span>
 <span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>counts_raw <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>  <span class="st">&quot;data/GSE303967_normalized_counts_All_Samples.csv&quot;</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a>  <span class="st">&quot;data/TARGET_WT_gene_expression_tpm.csv&quot;</span>,</span>
 <span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a>  <span class="at">show_col_types =</span> <span class="cn">FALSE</span></span>
-<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>)</span>
-<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a></span>
-<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="co"># Rename the first column explicitly so downstream code never relies on a</span></span>
-<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a><span class="co"># positional, unnamed column.</span></span>
-<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a>counts_raw <span class="ot">&lt;-</span> <span class="fu">rename</span>(counts_raw, <span class="at">gene_symbol =</span> <span class="dv">1</span>)</span></code></pre></div>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
+<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">gene_symbol =</span> gene_name)</span></code></pre></div>
 <div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="co"># --- Verification chunk: never assume a file &quot;looks right&quot; without checking ---</span></span>
 <span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a></span>
 <span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a><span class="co"># 1. Dimensions: how many genes (rows) and samples (columns)?</span></span>
 <span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a>n_genes_raw   <span class="ot">&lt;-</span> <span class="fu">nrow</span>(counts_raw)</span>
 <span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a>n_samples_raw <span class="ot">&lt;-</span> <span class="fu">ncol</span>(counts_raw) <span class="sc">-</span> <span class="dv">1</span>  <span class="co"># minus the gene_symbol column</span></span>
 <span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Genes (rows):&quot;</span>, n_genes_raw, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
-<pre><code>## Genes (rows): 17616</code></pre>
+<pre><code>## Genes (rows): 19938</code></pre>
 <div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Samples (columns):&quot;</span>, n_samples_raw, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
-<pre><code>## Samples (columns): 45</code></pre>
+<pre><code>## Samples (columns): 124</code></pre>
 <div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a><span class="co"># 2. Uniqueness of gene identifiers: duplicated symbols would break any</span></span>
 <span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a><span class="co">#    downstream join or per-gene grouping.</span></span>
 <span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a>n_duplicated_genes <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">duplicated</span>(counts_raw<span class="sc">$</span>gene_symbol))</span>
@@ -78932,159 +78924,173 @@ tells us anything about species.</p>
 <pre><code>## Mouse-style symbol &#39;Tp53&#39; present: FALSE</code></pre>
 <div class="alert-info">
 <p><strong>Verification note.</strong> The gene symbol capitalisation
-confirms <strong>human (HGNC) nomenclature</strong> — this is a fact we
-derived from the data itself, not an assumption. Every value in this
-matrix is an integer with no decimal component; this is consistent with
-<strong>upper-quartile (UQ) normalization</strong>, where each sample’s
-raw counts are scaled by a per-sample size factor derived from the upper
-quartile (typically the 75th percentile) of its non-zero counts and then
-rounded back to integers — unlike CPM/TPM or DESeq2 median-of-ratios
-normalization, which are usually left as continuous values. We record
-this explicitly here because the normalization method changes how the
-data should be interpreted downstream: UQ-normalized counts still
-benefit from a log-transform before comparison (used throughout this
-tutorial), and the still-integer scale should not be mistaken for raw,
-un-normalized counts.</p>
+confirms <strong>human (HGNC) nomenclature</strong> — expected, but
+checked rather than assumed. Values here are continuous (not integer),
+consistent with <strong>TPM</strong>: each gene’s read count already
+scaled by gene length and by the sample’s total library size, which is
+exactly why no additional per-sample size-factor normalization is needed
+before comparing samples — a log-transform (used throughout this
+tutorial) is still applied before any statistical test, but the heavier
+cross-sample normalization step the GSE303967 dataset needed in earlier
+runs of this tutorial is already done for us here.</p>
 </div>
 </div>
-<div id="building-a-sample-sheet-from-column-names" class="section level1">
-<h1>Building a Sample Sheet From Column Names</h1>
-<p>The raw file gives us no metadata table at all — only column headers
-such as <code>NNK16</code>, <code>WT19</code>, <code>NNK24</code>. This
-is a common, unglamorous reality of public and even in-house data:
-<strong>the sample sheet has to be reconstructed</strong>. In a proper
-biobank workflow this information (group, subject/animal ID, collection
-date, batch, operator) would be captured <strong>at the moment of sample
-intake</strong>, not reverse-engineered later from a spreadsheet column.
-We reconstruct what we can here as a worked example of <em>why</em> that
-discipline matters.</p>
-<p>Each column name follows the pattern
-<code>&lt;GROUP&gt;&lt;ID&gt;</code>, where <code>GROUP</code> is either
-<code>NNK</code> (the exposed/case arm) or <code>WT</code>
-(wild-type/control arm), and <code>ID</code> is a numeric identifier. We
-parse this systematically with <code>stringr</code>, rather than by
-hand, so the process is reproducible and auditable.</p>
-<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="co"># Extract sample identifiers directly from the column names of the count matrix.</span></span>
-<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a>sample_ids <span class="ot">&lt;-</span> <span class="fu">colnames</span>(counts_raw)[<span class="sc">-</span><span class="dv">1</span>]</span>
-<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a></span>
-<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a><span class="co"># Parse each sample ID into a structured metadata table:</span></span>
-<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a><span class="co">#  - group:   the leading letters (NNK = exposed/case, WT = wild-type/control)</span></span>
-<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a><span class="co">#  - pair_id: the trailing digits, which we hypothesise identifies a matched</span></span>
-<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a><span class="co">#             subject/animal shared between the two arms.</span></span>
-<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a>sample_metadata <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">sample_id =</span> sample_ids) <span class="sc">%&gt;%</span></span>
-<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a>    <span class="at">group   =</span> <span class="fu">str_extract</span>(sample_id, <span class="st">&quot;^[A-Za-z]+&quot;</span>),</span>
-<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a>    <span class="at">pair_id =</span> <span class="fu">str_extract</span>(sample_id, <span class="st">&quot;[0-9]+$&quot;</span>)</span>
-<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a>  )</span></code></pre></div>
-<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="co"># Verify the parsing worked for every single sample: no sample should end up</span></span>
-<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a><span class="co"># with a missing group or pair_id.</span></span>
-<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a>n_unparsed <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(sample_metadata<span class="sc">$</span>group) <span class="sc">|</span> <span class="fu">is.na</span>(sample_metadata<span class="sc">$</span>pair_id))</span>
-<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Samples that failed to parse:&quot;</span>, n_unparsed, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
-<pre><code>## Samples that failed to parse: 0</code></pre>
-<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" tabindex="-1"></a><span class="co"># Confirm every sample_id round-trips: pasting group + pair_id back together</span></span>
-<span id="cb34-2"><a href="#cb34-2" tabindex="-1"></a><span class="co"># should reproduce the original column name exactly.</span></span>
-<span id="cb34-3"><a href="#cb34-3" tabindex="-1"></a>reconstructed <span class="ot">&lt;-</span> <span class="fu">paste0</span>(sample_metadata<span class="sc">$</span>group, sample_metadata<span class="sc">$</span>pair_id)</span>
-<span id="cb34-4"><a href="#cb34-4" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Round-trip parsing matches original column names for all samples:&quot;</span>,</span>
-<span id="cb34-5"><a href="#cb34-5" tabindex="-1"></a>    <span class="fu">all</span>(reconstructed <span class="sc">==</span> sample_metadata<span class="sc">$</span>sample_id), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
-<pre><code>## Round-trip parsing matches original column names for all samples: TRUE</code></pre>
-<p>The full reconstructed sample sheet — downloadable as CSV/Excel/PDF —
-is shown below.</p>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-6db3eadb99fddcca4862" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-6db3eadb99fddcca4862">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>Reconstructed sample metadata (one row per sample).<\/caption>","data":[["NNK16","NNK19","WT19","NNK24","WT24","NNK25","WT25","NNK26","WT26","NNK27","WT27","NNK29","WT29","NNK33","NNK6","WT6","NNK7","WT7","NNK18","WT18","NNK31","WT31","NNK32","WT32","NNK39","WT39","NNK40","WT40","WT41","NNK42","NNK43","WT43","NNK48","WT48","NNK8","WT8","NNK9","WT9","NNK11","WT11","WT23","NNK28","WT28","NNK30","WT30"],["NNK","NNK","WT","NNK","WT","NNK","WT","NNK","WT","NNK","WT","NNK","WT","NNK","NNK","WT","NNK","WT","NNK","WT","NNK","WT","NNK","WT","NNK","WT","NNK","WT","WT","NNK","NNK","WT","NNK","WT","NNK","WT","NNK","WT","NNK","WT","WT","NNK","WT","NNK","WT"],["16","19","19","24","24","25","25","26","26","27","27","29","29","33","6","6","7","7","18","18","31","31","32","32","39","39","40","40","41","42","43","43","48","48","8","8","9","9","11","11","23","28","28","30","30"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>sample_id<\/th>\n      <th>group<\/th>\n      <th>pair_id<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":15,"columnDefs":[{"name":"sample_id","targets":0},{"name":"group","targets":1},{"name":"pair_id","targets":2}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,15,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+<div id="joining-the-expression-matrix-to-a-real-clinical-sheet" class="section level1">
+<h1>Joining the Expression Matrix to a Real Clinical Sheet</h1>
+<p>Column headers in the expression matrix are <strong>case
+identifiers</strong>, e.g. <code>TARGET-50-PAKGMU</code> — not group
+labels like the toy <code>NNK16</code>/<code>WT19</code> convention from
+an earlier version of this tutorial. The structure is still worth
+parsing explicitly rather than assumed: <code>TARGET</code> (the
+program), <code>50</code> (the disease code assigned to Wilms tumor
+within TARGET), then a unique case suffix.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="co"># Parse the real TARGET barcode structure from the expression matrix&#39;s</span></span>
+<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="co"># column names, rather than assuming every column follows the same pattern.</span></span>
+<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a>sample_ids <span class="ot">&lt;-</span> <span class="fu">colnames</span>(counts_raw)[<span class="sc">-</span><span class="dv">1</span>]</span>
+<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a></span>
+<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a>barcode_check <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">case_submitter_id =</span> sample_ids) <span class="sc">%&gt;%</span></span>
+<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">disease_code =</span> <span class="fu">str_split_i</span>(case_submitter_id, <span class="st">&quot;-&quot;</span>, <span class="dv">2</span>))</span>
+<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a></span>
+<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Unique disease codes found in the column names:&quot;</span>,</span>
+<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a>    <span class="fu">paste</span>(<span class="fu">unique</span>(barcode_check<span class="sc">$</span>disease_code), <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Unique disease codes found in the column names: 50</code></pre>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;All columns carry the Wilms-tumor disease code &#39;50&#39;:&quot;</span>,</span>
+<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a>    <span class="fu">all</span>(barcode_check<span class="sc">$</span>disease_code <span class="sc">==</span> <span class="st">&quot;50&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## All columns carry the Wilms-tumor disease code &#39;50&#39;: TRUE</code></pre>
+<p>The disease code confirms every column belongs to the same cohort — a
+cheap, worthwhile check before anything else. What the barcode does
+<strong>not</strong> tell us is histology, age, sex, or outcome: for
+that we need the separate clinical file GDC ships alongside the
+expression data, data/TARGET_WT_clinical_raw.csv.</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="co"># The real clinical/demographic sheet for the same cohort, from the GDC API.</span></span>
+<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a>clinical_raw <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;data/TARGET_WT_clinical_raw.csv&quot;</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-6a81c4149123039f9b0f" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-6a81c4149123039f9b0f">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>The real clinical/demographic fields GDC ships for TARGET-WT: notably richer than GSE303967's column-name-only metadata.<\/caption>","data":[["TARGET-50-PAKGMU","TARGET-50-PAKRCC","TARGET-50-PAJNNC","TARGET-50-PAJNLT","TARGET-50-PAKJGM","TARGET-50-PAJLNJ","TARGET-50-PAKGED","TARGET-50-PAJMFU","TARGET-50-PAJLPX","TARGET-50-CAAAAC","TARGET-50-PAJMEP","TARGET-50-PAJMEL","TARGET-50-PALFRD","TARGET-50-PAKVET","TARGET-50-PAKZFK","TARGET-50-PALKCW","TARGET-50-PAJNSL","TARGET-50-PAKXXF","TARGET-50-PAKYFC","TARGET-50-PAJNAV","TARGET-50-PAJNUP","TARGET-50-PAJNVE","TARGET-50-PAJNVX","TARGET-50-PAJMEN","TARGET-50-PAKKSE","TARGET-50-PALGVY","TARGET-50-PAKKNS","TARGET-50-PALDWP","TARGET-50-PALDTE","TARGET-50-PALLFB","TARGET-50-CAAAAJ","TARGET-50-PAJMMY","TARGET-50-PAKFME","TARGET-50-PAJLTH","TARGET-50-PAJNEC","TARGET-50-PAJNJJ","TARGET-50-PAJLLF","TARGET-50-PAKGZX","TARGET-50-PAJNGH","TARGET-50-PAJMKN","TARGET-50-PAKFYV","TARGET-50-PAJMIZ","TARGET-50-PAJNCC","TARGET-50-PAJMFY","TARGET-50-CAAAAO","TARGET-50-PAKYLT","TARGET-50-PAKZER","TARGET-50-PAJLKR","TARGET-50-PAKRZW","TARGET-50-PAJLKC","TARGET-50-PAKNRX","TARGET-50-PAKNAL","TARGET-50-PAKRVH","TARGET-50-PAJMLI","TARGET-50-CAAAAS","TARGET-50-CAAAAR","TARGET-50-PAJPDC","TARGET-50-PAJMRL","TARGET-50-PADXAY","TARGET-50-PALGAZ","TARGET-50-PAJNZK","TARGET-50-PAJPDN","TARGET-50-PAJMXF","TARGET-50-PAJMKI","TARGET-50-PAJNYT","TARGET-50-CAAAAM","TARGET-50-PAJNRH","TARGET-50-PALJIP","TARGET-50-PAKECR","TARGET-50-PALKRS","TARGET-50-PAKWPM","TARGET-50-PAKXWB","TARGET-50-PAJNAA","TARGET-50-PAJPCM","TARGET-50-PAJMSE","TARGET-50-PAEBXA","TARGET-50-PAJMLZ","TARGET-50-PAJNZU","TARGET-50-PAJNZS","TARGET-50-PAJNZI","TARGET-50-PAJLTI","TARGET-50-PAJPGY","TARGET-50-PAJNDU","TARGET-50-PAJLWT","TARGET-50-PAJPHA","TARGET-50-PAJNCZ","TARGET-50-PAJLSP","TARGET-50-PAJMKJ","TARGET-50-CAAAAH","TARGET-50-PAJLIP","TARGET-50-CAAAAP","TARGET-50-PAKSCC","TARGET-50-PAKMUB","TARGET-50-PAKSDG","TARGET-50-PAKUIT","TARGET-50-PALFME","TARGET-50-PAKNXS","TARGET-50-PAKNTW","TARGET-50-CAAAAL","TARGET-50-PAKPDF","TARGET-50-PAJNUS","TARGET-50-PAJMUF","TARGET-50-PAJNBN","TARGET-50-PAJNCJ","TARGET-50-PALEZT","TARGET-50-PAEAFB","TARGET-50-PALERC","TARGET-50-PAJMJT","TARGET-50-CAAAAB","TARGET-50-PAECJB","TARGET-50-PAJNNR","TARGET-50-PAKULH","TARGET-50-PAKZHF","TARGET-50-PAKMSV","TARGET-50-PAJNRL","TARGET-50-PAJNTJ","TARGET-50-CAAAAQ","TARGET-50-PAJMVU","TARGET-50-PALGLU","TARGET-50-PAJMVC","TARGET-50-PADZUB","TARGET-50-PAJPAU","TARGET-50-PAJPAR","TARGET-50-PAJPEW"],["Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable"],[1121,1466,281,1546,1007,325,2809,1348,2702,2244,670,1336,1785,405,1340,1895,160,1821,1069,1449,2201,800,1365,1508,847,1182,547,2104,979,2879,401,1953,1713,2819,1474,5698,2423,2201,851,521,1246,2488,797,1868,1326,2307,2271,2247,2238,2464,1785,2070,2728,1342,2476,314,2904,1685,1958,222,1532,1112,1650,2168,768,2750,1340,1789,1102,2003,1914,2681,3327,1754,1681,1192,1324,970,1789,2842,961,2122,2360,1262,1124,581,706,276,1710,3037,824,691,2412,1002,1236,3703,1245,4779,1599,1912,887,829,1509,1762,4397,490,156,1921,1757,807,2265,1030,1309,1968,1476,707,1287,1638,1275,1548,5557,1389,1950,5082],["female","male","male","female","male","female","female","female","male","female","male","female","female","female","female","male","female","male","female","male","female","female","male","female","female","female","male","male","male","male","female","male","female","male","female","female","female","male","male","female","female","female","male","female","female","female","female","female","female","female","male","female","male","male","female","female","female","male","male","female","female","female","male","male","male","female","female","female","female","male","male","female","female","female","female","female","male","female","female","female","male","female","male","male","male","male","male","female","female","female","male","male","male","male","female","male","male","male","female","female","male","male","male","female","female","male","female","female","female","female","male","female","male","male","male","male","female","female","female","male","female","male","female","male"],["Alive","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Dead","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Alive","Dead","Dead","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive"],["white","white","not reported","black or african american","white","white","white","not reported","black or african american","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","not reported","white","white","white","black or african american","white","black or african american","white","not reported","white","white","white","white","white","white","white","white","black or african american","white","not reported","other","black or african american","white","white","white","black or african american","white","white","white","white","other","white","white","black or african american","white","white","white","white","white","black or african american","not reported","white","white","white","black or african american","white","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","black or african american","black or african american","black or african american","white","white","not reported","white","white","white","white","white","white","white","white","white","white","black or african american","other","not reported","black or african american","white","black or african american","white","white","black or african american","white"],["not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","hispanic or latino","not reported","not reported","not hispanic or latino","not reported","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>case_submitter_id<\/th>\n      <th>histologic_subtype<\/th>\n      <th>age_at_diagnosis_days<\/th>\n      <th>sex_at_birth<\/th>\n      <th>vital_status<\/th>\n      <th>race<\/th>\n      <th>ethnicity<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":10,"columnDefs":[{"className":"dt-right","targets":2},{"name":"case_submitter_id","targets":0},{"name":"histologic_subtype","targets":1},{"name":"age_at_diagnosis_days","targets":2},{"name":"sex_at_birth","targets":3},{"name":"vital_status","targets":4},{"name":"race","targets":5},{"name":"ethnicity","targets":6}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Clinical sheet rows:&quot;</span>, <span class="fu">nrow</span>(clinical_raw), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Clinical sheet rows: 124</code></pre>
+<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Histologic subtype counts:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Histologic subtype counts:</code></pre>
+<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="fu">print</span>(<span class="fu">count</span>(clinical_raw, histologic_subtype))</span></code></pre></div>
+<pre><code>## # A tibble: 2 × 2
+##   histologic_subtype     n
+##   &lt;chr&gt;              &lt;int&gt;
+## 1 Favorable             82
+## 2 Unfavorable           42</code></pre>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Missing histologic_subtype:&quot;</span>, <span class="fu">sum</span>(<span class="fu">is.na</span>(clinical_raw<span class="sc">$</span>histologic_subtype)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Missing histologic_subtype: 0</code></pre>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Duplicated case_submitter_id in clinical sheet:&quot;</span>,</span>
+<span id="cb44-2"><a href="#cb44-2" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">duplicated</span>(clinical_raw<span class="sc">$</span>case_submitter_id)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Duplicated case_submitter_id in clinical sheet: 0</code></pre>
+<div id="the-join-verified-not-assumed" class="section level2">
+<h2>The Join, Verified — Not Assumed</h2>
+<p>This is the central metadata task for this dataset: the expression
+matrix and the clinical sheet were pulled from GDC independently and
+must now be joined by <code>case_submitter_id</code>. As Part 1 showed
+with the toy cohort, a join that “runs without error” is not the same as
+a join that is <em>correct</em> — every row must be checked, not just
+trusted.</p>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a><span class="co"># Join on case_submitter_id and verify no case is silently lost or duplicated</span></span>
+<span id="cb46-2"><a href="#cb46-2" tabindex="-1"></a><span class="co"># in either direction.</span></span>
+<span id="cb46-3"><a href="#cb46-3" tabindex="-1"></a>sample_metadata <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">case_submitter_id =</span> sample_ids) <span class="sc">%&gt;%</span></span>
+<span id="cb46-4"><a href="#cb46-4" tabindex="-1"></a>  <span class="fu">left_join</span>(clinical_raw, <span class="at">by =</span> <span class="st">&quot;case_submitter_id&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb46-5"><a href="#cb46-5" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb46-6"><a href="#cb46-6" tabindex="-1"></a>    <span class="at">age_years =</span> <span class="fu">round</span>(age_at_diagnosis_days <span class="sc">/</span> <span class="fl">365.25</span>, <span class="dv">1</span>)</span>
+<span id="cb46-7"><a href="#cb46-7" tabindex="-1"></a>  )</span></code></pre></div>
+<div class="sourceCode" id="cb47"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" tabindex="-1"></a><span class="co"># 1. Every expression-matrix sample must find exactly one clinical row.</span></span>
+<span id="cb47-2"><a href="#cb47-2" tabindex="-1"></a>n_unmatched <span class="ot">&lt;-</span> <span class="fu">sum</span>(<span class="fu">is.na</span>(sample_metadata<span class="sc">$</span>histologic_subtype))</span>
+<span id="cb47-3"><a href="#cb47-3" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Expression samples with no matching clinical record:&quot;</span>, n_unmatched, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Expression samples with no matching clinical record: 0</code></pre>
+<div class="sourceCode" id="cb49"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" tabindex="-1"></a><span class="co"># 2. No case should appear more than once after the join (would indicate a</span></span>
+<span id="cb49-2"><a href="#cb49-2" tabindex="-1"></a><span class="co">#    duplicated clinical row silently fanning out a sample into two rows).</span></span>
+<span id="cb49-3"><a href="#cb49-3" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Rows before join:&quot;</span>, <span class="fu">length</span>(sample_ids), <span class="st">&quot; | rows after join:&quot;</span>, <span class="fu">nrow</span>(sample_metadata), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Rows before join: 124  | rows after join: 124</code></pre>
+<div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Row count preserved by the join:&quot;</span>, <span class="fu">length</span>(sample_ids) <span class="sc">==</span> <span class="fu">nrow</span>(sample_metadata), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Row count preserved by the join: TRUE</code></pre>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" tabindex="-1"></a><span class="co"># 3. Every clinical case should also appear in the expression matrix (no</span></span>
+<span id="cb53-2"><a href="#cb53-2" tabindex="-1"></a><span class="co">#    clinical-only &quot;phantom&quot; cases silently carried forward).</span></span>
+<span id="cb53-3"><a href="#cb53-3" tabindex="-1"></a>clinical_only <span class="ot">&lt;-</span> <span class="fu">setdiff</span>(clinical_raw<span class="sc">$</span>case_submitter_id, sample_ids)</span>
+<span id="cb53-4"><a href="#cb53-4" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Clinical cases with no expression data:&quot;</span>, <span class="fu">length</span>(clinical_only), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## Clinical cases with no expression data: 0</code></pre>
+<p>The full joined, verified sample sheet — downloadable as
+CSV/Excel/PDF — is shown below.</p>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-eadcb2a5fd97861cca11" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-eadcb2a5fd97861cca11">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>Joined sample metadata (one row per sample): expression matrix columns matched to the real clinical sheet.<\/caption>","data":[["TARGET-50-PAKGMU","TARGET-50-PAKRCC","TARGET-50-PAJNNC","TARGET-50-PAJNLT","TARGET-50-PAKJGM","TARGET-50-PAJLNJ","TARGET-50-PAKGED","TARGET-50-PAJMFU","TARGET-50-PAJLPX","TARGET-50-CAAAAC","TARGET-50-PAJMEP","TARGET-50-PAJMEL","TARGET-50-PALFRD","TARGET-50-PAKVET","TARGET-50-PAKZFK","TARGET-50-PALKCW","TARGET-50-PAJNSL","TARGET-50-PAKXXF","TARGET-50-PAKYFC","TARGET-50-PAJNAV","TARGET-50-PAJNUP","TARGET-50-PAJNVE","TARGET-50-PAJNVX","TARGET-50-PAJMEN","TARGET-50-PAKKSE","TARGET-50-PALGVY","TARGET-50-PAKKNS","TARGET-50-PALDWP","TARGET-50-PALDTE","TARGET-50-PALLFB","TARGET-50-CAAAAJ","TARGET-50-PAJMMY","TARGET-50-PAKFME","TARGET-50-PAJLTH","TARGET-50-PAJNEC","TARGET-50-PAJNJJ","TARGET-50-PAJLLF","TARGET-50-PAKGZX","TARGET-50-PAJNGH","TARGET-50-PAJMKN","TARGET-50-PAKFYV","TARGET-50-PAJMIZ","TARGET-50-PAJNCC","TARGET-50-PAJMFY","TARGET-50-CAAAAO","TARGET-50-PAKYLT","TARGET-50-PAKZER","TARGET-50-PAJLKR","TARGET-50-PAKRZW","TARGET-50-PAJLKC","TARGET-50-PAKNRX","TARGET-50-PAKNAL","TARGET-50-PAKRVH","TARGET-50-PAJMLI","TARGET-50-CAAAAS","TARGET-50-CAAAAR","TARGET-50-PAJPDC","TARGET-50-PAJMRL","TARGET-50-PADXAY","TARGET-50-PALGAZ","TARGET-50-PAJNZK","TARGET-50-PAJPDN","TARGET-50-PAJMXF","TARGET-50-PAJMKI","TARGET-50-PAJNYT","TARGET-50-CAAAAM","TARGET-50-PAJNRH","TARGET-50-PALJIP","TARGET-50-PAKECR","TARGET-50-PALKRS","TARGET-50-PAKWPM","TARGET-50-PAKXWB","TARGET-50-PAJNAA","TARGET-50-PAJPCM","TARGET-50-PAJMSE","TARGET-50-PAEBXA","TARGET-50-PAJMLZ","TARGET-50-PAJNZU","TARGET-50-PAJNZS","TARGET-50-PAJNZI","TARGET-50-PAJLTI","TARGET-50-PAJPGY","TARGET-50-PAJNDU","TARGET-50-PAJLWT","TARGET-50-PAJPHA","TARGET-50-PAJNCZ","TARGET-50-PAJLSP","TARGET-50-PAJMKJ","TARGET-50-CAAAAH","TARGET-50-PAJLIP","TARGET-50-CAAAAP","TARGET-50-PAKSCC","TARGET-50-PAKMUB","TARGET-50-PAKSDG","TARGET-50-PAKUIT","TARGET-50-PALFME","TARGET-50-PAKNXS","TARGET-50-PAKNTW","TARGET-50-CAAAAL","TARGET-50-PAKPDF","TARGET-50-PAJNUS","TARGET-50-PAJMUF","TARGET-50-PAJNBN","TARGET-50-PAJNCJ","TARGET-50-PALEZT","TARGET-50-PAEAFB","TARGET-50-PALERC","TARGET-50-PAJMJT","TARGET-50-CAAAAB","TARGET-50-PAECJB","TARGET-50-PAJNNR","TARGET-50-PAKULH","TARGET-50-PAKZHF","TARGET-50-PAKMSV","TARGET-50-PAJNRL","TARGET-50-PAJNTJ","TARGET-50-CAAAAQ","TARGET-50-PAJMVU","TARGET-50-PALGLU","TARGET-50-PAJMVC","TARGET-50-PADZUB","TARGET-50-PAJPAU","TARGET-50-PAJPAR","TARGET-50-PAJPEW"],["Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable"],[1121,1466,281,1546,1007,325,2809,1348,2702,2244,670,1336,1785,405,1340,1895,160,1821,1069,1449,2201,800,1365,1508,847,1182,547,2104,979,2879,401,1953,1713,2819,1474,5698,2423,2201,851,521,1246,2488,797,1868,1326,2307,2271,2247,2238,2464,1785,2070,2728,1342,2476,314,2904,1685,1958,222,1532,1112,1650,2168,768,2750,1340,1789,1102,2003,1914,2681,3327,1754,1681,1192,1324,970,1789,2842,961,2122,2360,1262,1124,581,706,276,1710,3037,824,691,2412,1002,1236,3703,1245,4779,1599,1912,887,829,1509,1762,4397,490,156,1921,1757,807,2265,1030,1309,1968,1476,707,1287,1638,1275,1548,5557,1389,1950,5082],["female","male","male","female","male","female","female","female","male","female","male","female","female","female","female","male","female","male","female","male","female","female","male","female","female","female","male","male","male","male","female","male","female","male","female","female","female","male","male","female","female","female","male","female","female","female","female","female","female","female","male","female","male","male","female","female","female","male","male","female","female","female","male","male","male","female","female","female","female","male","male","female","female","female","female","female","male","female","female","female","male","female","male","male","male","male","male","female","female","female","male","male","male","male","female","male","male","male","female","female","male","male","male","female","female","male","female","female","female","female","male","female","male","male","male","male","female","female","female","male","female","male","female","male"],["Alive","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Dead","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Alive","Dead","Dead","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive"],["white","white","not reported","black or african american","white","white","white","not reported","black or african american","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","not reported","white","white","white","black or african american","white","black or african american","white","not reported","white","white","white","white","white","white","white","white","black or african american","white","not reported","other","black or african american","white","white","white","black or african american","white","white","white","white","other","white","white","black or african american","white","white","white","white","white","black or african american","not reported","white","white","white","black or african american","white","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","black or african american","black or african american","black or african american","white","white","not reported","white","white","white","white","white","white","white","white","white","white","black or african american","other","not reported","black or african american","white","black or african american","white","white","black or african american","white"],["not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","hispanic or latino","not reported","not reported","not hispanic or latino","not reported","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino"],[3.1,4,0.8,4.2,2.8,0.9,7.7,3.7,7.4,6.1,1.8,3.7,4.9,1.1,3.7,5.2,0.4,5,2.9,4,6,2.2,3.7,4.1,2.3,3.2,1.5,5.8,2.7,7.9,1.1,5.3,4.7,7.7,4,15.6,6.6,6,2.3,1.4,3.4,6.8,2.2,5.1,3.6,6.3,6.2,6.2,6.1,6.7,4.9,5.7,7.5,3.7,6.8,0.9,8,4.6,5.4,0.6,4.2,3,4.5,5.9,2.1,7.5,3.7,4.9,3,5.5,5.2,7.3,9.1,4.8,4.6,3.3,3.6,2.7,4.9,7.8,2.6,5.8,6.5,3.5,3.1,1.6,1.9,0.8,4.7,8.300000000000001,2.3,1.9,6.6,2.7,3.4,10.1,3.4,13.1,4.4,5.2,2.4,2.3,4.1,4.8,12,1.3,0.4,5.3,4.8,2.2,6.2,2.8,3.6,5.4,4,1.9,3.5,4.5,3.5,4.2,15.2,3.8,5.3,13.9]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>case_submitter_id<\/th>\n      <th>histologic_subtype<\/th>\n      <th>age_at_diagnosis_days<\/th>\n      <th>sex_at_birth<\/th>\n      <th>vital_status<\/th>\n      <th>race<\/th>\n      <th>ethnicity<\/th>\n      <th>age_years<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":15,"columnDefs":[{"className":"dt-right","targets":[2,7]},{"name":"case_submitter_id","targets":0},{"name":"histologic_subtype","targets":1},{"name":"age_at_diagnosis_days","targets":2},{"name":"sex_at_birth","targets":3},{"name":"vital_status","targets":4},{"name":"race","targets":5},{"name":"ethnicity","targets":6},{"name":"age_years","targets":7}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,15,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+</div>
 <div id="group-balance" class="section level2">
 <h2>Group Balance</h2>
-<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a>group_counts <span class="ot">&lt;-</span> <span class="fu">count</span>(sample_metadata, group, <span class="at">name =</span> <span class="st">&quot;n_samples&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb55"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb55-1"><a href="#cb55-1" tabindex="-1"></a>group_counts <span class="ot">&lt;-</span> <span class="fu">count</span>(sample_metadata, histologic_subtype, <span class="at">name =</span> <span class="st">&quot;n_samples&quot;</span>)</span></code></pre></div>
 <table>
-<caption>Number of samples per group.</caption>
+<caption>Number of samples per histologic subtype.</caption>
 <thead>
 <tr class="header">
-<th align="left">group</th>
+<th align="left">histologic_subtype</th>
 <th align="right">n_samples</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">NNK</td>
-<td align="right">23</td>
+<td align="left">Favorable</td>
+<td align="right">82</td>
 </tr>
 <tr class="even">
-<td align="left">WT</td>
-<td align="right">22</td>
+<td align="left">Unfavorable</td>
+<td align="right">42</td>
 </tr>
 </tbody>
 </table>
-</div>
-</div>
-<div id="traceability-are-the-two-arms-actually-matched" class="section level1">
-<h1>Traceability: Are the Two Arms Actually Matched?</h1>
-<p>A <strong>matched-pair design</strong> (the same subject or animal
-contributing both a case and a control sample) is statistically
-powerful, because it removes inter-individual variability from the
-comparison. But it only works if pairing is <em>complete and
-verified</em> — an untracked missing partner silently turns a paired
-analysis into a biased one. We check this directly from
-<code>pair_id</code>, rather than assuming the study was fully
-paired.</p>
-<div class="sourceCode" id="cb37"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" tabindex="-1"></a><span class="co"># Count how many times each pair_id appears. A fully matched design would show</span></span>
-<span id="cb37-2"><a href="#cb37-2" tabindex="-1"></a><span class="co"># every pair_id exactly twice (once per group).</span></span>
-<span id="cb37-3"><a href="#cb37-3" tabindex="-1"></a>pairing_check <span class="ot">&lt;-</span> sample_metadata <span class="sc">%&gt;%</span></span>
-<span id="cb37-4"><a href="#cb37-4" tabindex="-1"></a>  <span class="fu">count</span>(pair_id, <span class="at">name =</span> <span class="st">&quot;n_occurrences&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb37-5"><a href="#cb37-5" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(n_occurrences))</span>
-<span id="cb37-6"><a href="#cb37-6" tabindex="-1"></a></span>
-<span id="cb37-7"><a href="#cb37-7" tabindex="-1"></a>n_matched_pairs   <span class="ot">&lt;-</span> <span class="fu">sum</span>(pairing_check<span class="sc">$</span>n_occurrences <span class="sc">==</span> <span class="dv">2</span>)</span>
-<span id="cb37-8"><a href="#cb37-8" tabindex="-1"></a>unmatched_pairids <span class="ot">&lt;-</span> pairing_check <span class="sc">%&gt;%</span> <span class="fu">filter</span>(n_occurrences <span class="sc">!=</span> <span class="dv">2</span>) <span class="sc">%&gt;%</span> <span class="fu">pull</span>(pair_id)</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-8a4252be8d29d0461793" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-8a4252be8d29d0461793">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>Occurrences of each pair_id across the two groups.<\/caption>","data":[["11","18","19","24","25","26","27","28","29","30","31","32","39","40","43","48","6","7","8","9","16","23","33","41","42"],[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>pair_id<\/th>\n      <th>n_occurrences<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":15,"columnDefs":[{"className":"dt-right","targets":1},{"name":"pair_id","targets":0},{"name":"n_occurrences","targets":1}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,15,25,50,100]}},"evals":[],"jsHooks":[]}</script>
 <div class="alert-info">
-<p><strong>Result.</strong> 20 pair IDs are fully matched (present in
-both <code>NNK</code> and <code>WT</code>), while 5 pair ID(s) — 16, 23,
-33, 41, 42 — appear only once. This is documented here explicitly rather
-than silently dropped, and it means a <em>fully paired</em> statistical
-test cannot be applied to every sample without excluding these unmatched
-cases. In Module 2 we use an unpaired (two-sample) test across all
-available samples for this reason, and this decision is stated openly
-rather than left implicit.</p>
+<p><strong>Result.</strong> 82 samples are <strong>favorable
+histology</strong> (the better-prognosis majority of Wilms tumor) and 42
+are <strong>unfavorable/anaplastic histology</strong> — the clinically
+high-risk subtype. This is a real, clinically meaningful grouping, not a
+reconstructed proxy label, and it is what Module 2 compares
+statistically.</p>
+</div>
 </div>
 </div>
 <div id="why-this-matters-for-pediatric-rare-disease-and-cancer" class="section level1">
 <h1>Why This Matters for Pediatric Rare Disease and Cancer</h1>
-<p>Everything above — parsing IDs, checking group balance, verifying
-pairing — may look like bookkeeping, but it is the step where pediatric
-bioinformatics projects most often fail silently:</p>
+<p>Everything above — parsing the barcode, checking histology counts,
+verifying the join — may look like bookkeeping, but it is the step where
+pediatric bioinformatics projects most often fail silently:</p>
 <ul>
 <li><strong>Small cohorts amplify metadata errors.</strong> A rare
 pediatric tumor study may enroll a handful of patients per year. One
 swapped or mislabeled sample can shift a whole cohort’s conclusions,
-whereas in a 10,000-adult cohort the same error is diluted into
-noise.</li>
-<li><strong>Biobanking discipline is what makes rare-disease research
-possible at all.</strong> Multi-center biobanks (tumor plus matched
-normal tissue, longitudinal liquid biopsies, family trios for rare
-Mendelian disease) only remain usable if sample provenance, consent
-status, and collection metadata are captured at intake — not
-reconstructed years later from a filename, as we were forced to do
-here.</li>
-<li><strong>Matched designs are common and valuable in pediatric
-studies</strong> (tumor vs. adjacent normal, pre- vs. post-treatment,
-proband vs. unaffected sibling), which is exactly why we checked pairing
-explicitly instead of assuming it.</li>
+whereas in a 10,000-adult cohort the same error is diluted into noise.
+With only 42 anaplastic cases available here, a single mis-joined row
+would measurably shift that group’s results.</li>
+<li><strong>This metadata exists at all because of a dedicated,
+multi-institution effort.</strong> The real clinical fields above
+(histology, age at diagnosis, sex, vital status) exist because the
+<strong>Children’s Oncology Group</strong> ran a coordinated,
+multi-center trial (NWTS-5) and the NCI’s <strong>TARGET</strong>
+program standardized and released it — exactly the kind of
+infrastructure Part 3 described as the alternative to reconstructing
+metadata from filenames after the fact.</li>
+<li><strong>Histology-based risk stratification is a real, high-stakes
+clinical decision in Wilms tumor.</strong> Anaplastic histology drives
+more intensive treatment in real clinical practice. The
+favorable/unfavorable grouping used from here on is not an arbitrary
+analysis choice — it is the same grouping oncologists use to make
+treatment decisions.</li>
 </ul>
 </div>
 <div id="exporting-clean-metadata-for-downstream-modules" class="section level1">
 <h1>Exporting Clean Metadata for Downstream Modules</h1>
-<p>We save the reconstructed, verified sample sheet so that Modules 1–3
-read a single, consistent source of truth rather than re-deriving it
+<p>We save the joined, verified sample sheet so that Modules 1–3 read a
+single, consistent source of truth rather than re-deriving it
 independently.</p>
-<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a><span class="co"># Persist the verified metadata table to disk for reuse by later modules.</span></span>
-<span id="cb38-2"><a href="#cb38-2" tabindex="-1"></a><span class="fu">write_csv</span>(sample_metadata, <span class="st">&quot;data/sample_metadata.csv&quot;</span>)</span>
-<span id="cb38-3"><a href="#cb38-3" tabindex="-1"></a></span>
-<span id="cb38-4"><a href="#cb38-4" tabindex="-1"></a><span class="co"># Confirm the file was written and round-trips correctly.</span></span>
-<span id="cb38-5"><a href="#cb38-5" tabindex="-1"></a>reloaded_metadata <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;data/sample_metadata.csv&quot;</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb38-6"><a href="#cb38-6" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;sample_metadata.csv written with&quot;</span>, <span class="fu">nrow</span>(reloaded_metadata), <span class="st">&quot;rows and&quot;</span>,</span>
-<span id="cb38-7"><a href="#cb38-7" tabindex="-1"></a>    <span class="fu">ncol</span>(reloaded_metadata), <span class="st">&quot;columns.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
-<pre><code>## sample_metadata.csv written with 45 rows and 3 columns.</code></pre>
-<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Reloaded table identical to in-memory table:&quot;</span>,</span>
-<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a>    <span class="fu">identical</span>(<span class="fu">dim</span>(reloaded_metadata), <span class="fu">dim</span>(sample_metadata)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb56"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" tabindex="-1"></a><span class="co"># Persist the verified metadata table to disk for reuse by later modules.</span></span>
+<span id="cb56-2"><a href="#cb56-2" tabindex="-1"></a><span class="fu">write_csv</span>(sample_metadata, <span class="st">&quot;data/sample_metadata.csv&quot;</span>)</span>
+<span id="cb56-3"><a href="#cb56-3" tabindex="-1"></a></span>
+<span id="cb56-4"><a href="#cb56-4" tabindex="-1"></a><span class="co"># Confirm the file was written and round-trips correctly.</span></span>
+<span id="cb56-5"><a href="#cb56-5" tabindex="-1"></a>reloaded_metadata <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;data/sample_metadata.csv&quot;</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb56-6"><a href="#cb56-6" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;sample_metadata.csv written with&quot;</span>, <span class="fu">nrow</span>(reloaded_metadata), <span class="st">&quot;rows and&quot;</span>,</span>
+<span id="cb56-7"><a href="#cb56-7" tabindex="-1"></a>    <span class="fu">ncol</span>(reloaded_metadata), <span class="st">&quot;columns.</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
+<pre><code>## sample_metadata.csv written with 124 rows and 8 columns.</code></pre>
+<div class="sourceCode" id="cb58"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Reloaded table identical to in-memory table:&quot;</span>,</span>
+<span id="cb58-2"><a href="#cb58-2" tabindex="-1"></a>    <span class="fu">identical</span>(<span class="fu">dim</span>(reloaded_metadata), <span class="fu">dim</span>(sample_metadata)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div>
 <pre><code>## Reloaded table identical to in-memory table: TRUE</code></pre>
 <hr />
 <div id="summary" class="section level2">
@@ -79134,26 +79140,21 @@ vs. flag-only, then connected every issue to pediatric-specific consent
 and age-resolution considerations.</td>
 </tr>
 <tr class="even">
-<td>Loading the raw count matrix</td>
-<td>Loaded the GSE303967 count matrix and verified its dimensions,
-gene-symbol uniqueness, absence of missing values, and species (human,
-from HGNC-style nomenclature); flagged that the “normalized_counts” file
-actually contains integer values.</td>
+<td>Loading the raw expression matrix</td>
+<td>Loaded the real TARGET-WT (Wilms tumor) TPM expression matrix and
+verified its dimensions, gene-symbol uniqueness, absence of missing
+values, and species (human, from HGNC-style nomenclature).</td>
 </tr>
 <tr class="odd">
-<td>Building a sample sheet</td>
-<td>Parsed <code>NNK</code>/<code>WT</code> group and numeric ID
-directly from column names into a structured, auditable metadata
-table.</td>
+<td>Joining to a real clinical sheet</td>
+<td>Parsed the real TARGET barcode structure, loaded GDC’s
+clinical/demographic sheet, and joined it to the expression matrix by
+case ID — verifying no case was lost or duplicated in either
+direction.</td>
 </tr>
 <tr class="even">
-<td>Traceability check</td>
-<td>Verified which samples form matched NNK/WT pairs and explicitly
-flagged the 5 samples with no matched partner.</td>
-</tr>
-<tr class="odd">
 <td>Exporting metadata</td>
-<td>Saved the verified sample sheet to
+<td>Saved the joined, verified sample sheet to
 <code>data/sample_metadata.csv</code> for reuse in Modules 1–3.</td>
 </tr>
 </tbody>
@@ -79174,7 +79175,7 @@ all include CSV / Excel / PDF download buttons (where rendered via
 </div>
 <hr />
 <div class="report-footer">
-<p>Generated on 01 October 2026 · Francesco Cecere · Senior
+<p>Generated on 13 October 2026 · Francesco Cecere · Senior
 Bioinformatic Researcher · AORN Santobono-Pausilipon</p>
 </div>
 </div>

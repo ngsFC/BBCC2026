@@ -1,0 +1,125 @@
+case_submitter_id,histologic_subtype,age_at_diagnosis_days,sex_at_birth,vital_status,race,ethnicity
+TARGET-50-PAKGMU,Unfavorable,1121,female,Alive,white,not reported
+TARGET-50-PAKRCC,Unfavorable,1466,male,Alive,white,not hispanic or latino
+TARGET-50-PAJNNC,Favorable,281,male,Alive,not reported,not reported
+TARGET-50-PAJNLT,Favorable,1546,female,Dead,black or african american,not hispanic or latino
+TARGET-50-PAKJGM,Favorable,1007,male,Dead,white,not hispanic or latino
+TARGET-50-PAJLNJ,Favorable,325,female,Dead,white,not reported
+TARGET-50-PAKGED,Unfavorable,2809,female,Alive,white,not hispanic or latino
+TARGET-50-PAJMFU,Unfavorable,1348,female,Alive,not reported,hispanic or latino
+TARGET-50-PAJLPX,Unfavorable,2702,male,Alive,black or african american,not hispanic or latino
+TARGET-50-CAAAAC,Favorable,2244,female,Dead,white,not hispanic or latino
+TARGET-50-PAJMEP,Favorable,670,male,Dead,white,not hispanic or latino
+TARGET-50-PAJMEL,Favorable,1336,female,Alive,white,not hispanic or latino
+TARGET-50-PALFRD,Favorable,1785,female,Alive,white,hispanic or latino
+TARGET-50-PAKVET,Favorable,405,female,Alive,white,not hispanic or latino
+TARGET-50-PAKZFK,Favorable,1340,female,Alive,white,not hispanic or latino
+TARGET-50-PALKCW,Favorable,1895,male,Alive,white,not hispanic or latino
+TARGET-50-PAJNSL,Favorable,160,female,Alive,white,not reported
+TARGET-50-PAKXXF,Unfavorable,1821,male,Dead,white,not hispanic or latino
+TARGET-50-PAKYFC,Favorable,1069,female,Alive,other,not hispanic or latino
+TARGET-50-PAJNAV,Favorable,1449,male,Dead,black or african american,not hispanic or latino
+TARGET-50-PAJNUP,Unfavorable,2201,female,Dead,white,not reported
+TARGET-50-PAJNVE,Unfavorable,800,female,Alive,white,not hispanic or latino
+TARGET-50-PAJNVX,Unfavorable,1365,male,Dead,white,not reported
+TARGET-50-PAJMEN,Favorable,1508,female,Dead,white,not hispanic or latino
+TARGET-50-PAKKSE,Favorable,847,female,Alive,white,not hispanic or latino
+TARGET-50-PALGVY,Favorable,1182,female,Alive,white,not hispanic or latino
+TARGET-50-PAKKNS,Unfavorable,547,male,Alive,white,not hispanic or latino
+TARGET-50-PALDWP,Favorable,2104,male,Dead,white,not hispanic or latino
+TARGET-50-PALDTE,Favorable,979,male,Alive,white,not hispanic or latino
+TARGET-50-PALLFB,Unfavorable,2879,male,Dead,white,not hispanic or latino
+TARGET-50-CAAAAJ,Favorable,401,female,Alive,white,not hispanic or latino
+TARGET-50-PAJMMY,Favorable,1953,male,Alive,white,hispanic or latino
+TARGET-50-PAKFME,Favorable,1713,female,Alive,white,not hispanic or latino
+TARGET-50-PAJLTH,Favorable,2819,male,Alive,white,not reported
+TARGET-50-PAJNEC,Favorable,1474,female,Dead,white,not hispanic or latino
+TARGET-50-PAJNJJ,Favorable,5698,female,Alive,white,not hispanic or latino
+TARGET-50-PAJLLF,Unfavorable,2423,female,Alive,not reported,not reported
+TARGET-50-PAKGZX,Favorable,2201,male,Alive,white,hispanic or latino
+TARGET-50-PAJNGH,Favorable,851,male,Dead,white,not reported
+TARGET-50-PAJMKN,Favorable,521,female,Alive,white,not reported
+TARGET-50-PAKFYV,Unfavorable,1246,female,Dead,black or african american,not hispanic or latino
+TARGET-50-PAJMIZ,Favorable,2488,female,Dead,white,not reported
+TARGET-50-PAJNCC,Favorable,797,male,Alive,black or african american,not hispanic or latino
+TARGET-50-PAJMFY,Favorable,1868,female,Alive,white,not reported
+TARGET-50-CAAAAO,Favorable,1326,female,Dead,not reported,not reported
+TARGET-50-PAKYLT,Unfavorable,2307,female,Alive,white,not hispanic or latino
+TARGET-50-PAKZER,Favorable,2271,female,Alive,white,not hispanic or latino
+TARGET-50-PAJLKR,Favorable,2247,female,Alive,white,not reported
+TARGET-50-PAKRZW,Favorable,2238,female,Alive,white,not reported
+TARGET-50-PAJLKC,Unfavorable,2464,female,Alive,white,not reported
+TARGET-50-PAKNRX,Unfavorable,1785,male,Dead,white,not hispanic or latino
+TARGET-50-PAKNAL,Unfavorable,2070,female,Alive,white,not hispanic or latino
+TARGET-50-PAKRVH,Favorable,2728,male,Alive,white,not hispanic or latino
+TARGET-50-PAJMLI,Unfavorable,1342,male,Dead,black or african american,not hispanic or latino
+TARGET-50-CAAAAS,Favorable,2476,female,Alive,white,not hispanic or latino
+TARGET-50-CAAAAR,Favorable,314,female,Alive,not reported,not reported
+TARGET-50-PAJPDC,Favorable,2904,female,Alive,other,not hispanic or latino
+TARGET-50-PAJMRL,Unfavorable,1685,male,Dead,black or african american,not hispanic or latino
+TARGET-50-PADXAY,Unfavorable,1958,male,Alive,white,not hispanic or latino
+TARGET-50-PALGAZ,Favorable,222,female,Dead,white,hispanic or latino
+TARGET-50-PAJNZK,Favorable,1532,female,Alive,white,not hispanic or latino
+TARGET-50-PAJPDN,Unfavorable,1112,female,Alive,black or african american,not hispanic or latino
+TARGET-50-PAJMXF,Favorable,1650,male,Dead,white,not hispanic or latino
+TARGET-50-PAJMKI,Unfavorable,2168,male,Dead,white,not hispanic or latino
+TARGET-50-PAJNYT,Favorable,768,male,Dead,white,not hispanic or latino
+TARGET-50-CAAAAM,Unfavorable,2750,female,Alive,white,not hispanic or latino
+TARGET-50-PAJNRH,Unfavorable,1340,female,Alive,other,hispanic or latino
+TARGET-50-PALJIP,Favorable,1789,female,Dead,white,not hispanic or latino
+TARGET-50-PAKECR,Unfavorable,1102,female,Alive,white,not hispanic or latino
+TARGET-50-PALKRS,Favorable,2003,male,Dead,black or african american,not hispanic or latino
+TARGET-50-PAKWPM,Favorable,1914,male,Alive,white,not hispanic or latino
+TARGET-50-PAKXWB,Favorable,2681,female,Dead,white,not hispanic or latino
+TARGET-50-PAJNAA,Unfavorable,3327,female,Alive,white,not hispanic or latino
+TARGET-50-PAJPCM,Unfavorable,1754,female,Alive,white,not reported
+TARGET-50-PAJMSE,Favorable,1681,female,Dead,white,not reported
+TARGET-50-PAEBXA,Favorable,1192,female,Dead,black or african american,not hispanic or latino
+TARGET-50-PAJMLZ,Unfavorable,1324,male,Dead,not reported,hispanic or latino
+TARGET-50-PAJNZU,Favorable,970,female,Alive,white,not hispanic or latino
+TARGET-50-PAJNZS,Unfavorable,1789,female,Alive,white,not reported
+TARGET-50-PAJNZI,Unfavorable,2842,female,Alive,white,not hispanic or latino
+TARGET-50-PAJLTI,Favorable,961,male,Alive,black or african american,not hispanic or latino
+TARGET-50-PAJPGY,Favorable,2122,female,Alive,white,not hispanic or latino
+TARGET-50-PAJNDU,Favorable,2360,male,Alive,white,not hispanic or latino
+TARGET-50-PAJLWT,Favorable,1262,male,Dead,white,not reported
+TARGET-50-PAJPHA,Favorable,1124,male,Alive,white,not hispanic or latino
+TARGET-50-PAJNCZ,Favorable,581,male,Alive,white,not hispanic or latino
+TARGET-50-PAJLSP,Favorable,706,male,Alive,white,not reported
+TARGET-50-PAJMKJ,Favorable,276,female,Alive,white,not reported
+TARGET-50-CAAAAH,Unfavorable,1710,female,Dead,white,not reported
+TARGET-50-PAJLIP,Unfavorable,3037,female,Alive,white,not reported
+TARGET-50-CAAAAP,Unfavorable,824,male,Alive,white,not hispanic or latino
+TARGET-50-PAKSCC,Favorable,691,male,Alive,other,hispanic or latino
+TARGET-50-PAKMUB,Favorable,2412,male,Alive,black or african american,not hispanic or latino
+TARGET-50-PAKSDG,Favorable,1002,male,Dead,white,not hispanic or latino
+TARGET-50-PAKUIT,Unfavorable,1236,female,Dead,white,not hispanic or latino
+TARGET-50-PALFME,Favorable,3703,male,Dead,white,hispanic or latino
+TARGET-50-PAKNXS,Unfavorable,1245,male,Dead,white,not hispanic or latino
+TARGET-50-PAKNTW,Favorable,4779,male,Alive,white,not hispanic or latino
+TARGET-50-CAAAAL,Favorable,1599,female,Alive,black or african american,not hispanic or latino
+TARGET-50-PAKPDF,Unfavorable,1912,female,Dead,black or african american,not hispanic or latino
+TARGET-50-PAJNUS,Favorable,887,male,Dead,black or african american,not hispanic or latino
+TARGET-50-PAJMUF,Favorable,829,male,Alive,white,not hispanic or latino
+TARGET-50-PAJNBN,Favorable,1509,male,Dead,white,not reported
+TARGET-50-PAJNCJ,Favorable,1762,female,Alive,not reported,not reported
+TARGET-50-PALEZT,Unfavorable,4397,female,Alive,white,not hispanic or latino
+TARGET-50-PAEAFB,Favorable,490,male,Dead,white,not hispanic or latino
+TARGET-50-PALERC,Favorable,156,female,Alive,white,not hispanic or latino
+TARGET-50-PAJMJT,Favorable,1921,female,Alive,white,not hispanic or latino
+TARGET-50-CAAAAB,Unfavorable,1757,female,Dead,white,not reported
+TARGET-50-PAECJB,Favorable,807,female,Dead,white,not hispanic or latino
+TARGET-50-PAJNNR,Unfavorable,2265,male,Dead,white,not reported
+TARGET-50-PAKULH,Favorable,1030,female,Dead,white,hispanic or latino
+TARGET-50-PAKZHF,Favorable,1309,male,Alive,white,not hispanic or latino
+TARGET-50-PAKMSV,Favorable,1968,male,Dead,white,not hispanic or latino
+TARGET-50-PAJNRL,Favorable,1476,male,Dead,black or african american,not hispanic or latino
+TARGET-50-PAJNTJ,Favorable,707,male,Dead,other,not hispanic or latino
+TARGET-50-CAAAAQ,Favorable,1287,female,Alive,not reported,not reported
+TARGET-50-PAJMVU,Unfavorable,1638,female,Alive,black or african american,not hispanic or latino
+TARGET-50-PALGLU,Favorable,1275,female,Dead,white,hispanic or latino
+TARGET-50-PAJMVC,Unfavorable,1548,male,Alive,black or african american,not hispanic or latino
+TARGET-50-PADZUB,Favorable,5557,female,Dead,white,not hispanic or latino
+TARGET-50-PAJPAU,Favorable,1389,male,Alive,white,not reported
+TARGET-50-PAJPAR,Unfavorable,1950,female,Dead,black or african american,not hispanic or latino
+TARGET-50-PAJPEW,Favorable,5082,male,Alive,white,not hispanic or latino

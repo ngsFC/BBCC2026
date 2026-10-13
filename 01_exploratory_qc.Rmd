@@ -175,7 +175,7 @@ library(scales)      # axis formatting
 
 # From Module 0
 
-Module 0 turned the raw column names of `GSE303967_normalized_counts_All_Samples.csv` into a verified, structured sample sheet (`data/sample_metadata.csv`): 45 samples, 23 `NNK` and 22 `WT`, mostly matched in pairs by a shared numeric ID, with 5 samples lacking a matched partner. Before we compare groups statistically in Module 2, this module asks a more basic question: **do the samples themselves look trustworthy?** Quality control is not a formality — an unnoticed outlier sample, batch effect, or mislabeled group can produce a "biomarker" that is really just a technical artifact.
+Module 0 joined the real TARGET-WT (Wilms tumor) expression matrix to a real clinical sheet into a verified, structured sample sheet (`data/sample_metadata.csv`): 124 samples, 82 **favorable** and 42 **unfavorable (anaplastic)** histology, with every case matched and no unmatched or duplicated rows. Before we compare groups statistically in Module 2, this module asks a more basic question: **do the samples themselves look trustworthy?** Quality control is not a formality — an unnoticed outlier sample, batch effect, or mislabeled group can produce a "biomarker" that is really just a technical artifact.
 
 **Session plan (≈35 minutes):** recap & reload the data (5 min) → library sizes (5 min) → expression distributions (5 min) → PCA, explained and plotted (12 min) → sample-sample correlation (5 min) → pediatric QC takeaways (3 min).
 
@@ -184,12 +184,12 @@ Module 0 turned the raw column names of `GSE303967_normalized_counts_All_Samples
 </div>
 
 ```{r load-data, echo=TRUE}
-# Load the count matrix and the verified metadata table produced in Module 0.
+# Load the expression matrix and the verified metadata table produced in Module 0.
 counts_raw <- read_csv(
-  "data/GSE303967_normalized_counts_All_Samples.csv",
+  "data/TARGET_WT_gene_expression_tpm.csv",
   show_col_types = FALSE
 ) %>%
-  rename(gene_symbol = 1)
+  rename(gene_symbol = gene_name)
 
 sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
 ```
@@ -202,39 +202,46 @@ n_genes   <- nrow(counts_raw)
 n_samples <- ncol(counts_raw) - 1
 
 counts_long <- counts_raw %>%
-  pivot_longer(-gene_symbol, names_to = "sample_id", values_to = "count") %>%
-  left_join(sample_metadata, by = "sample_id")
+  pivot_longer(-gene_symbol, names_to = "case_submitter_id", values_to = "tpm") %>%
+  left_join(sample_metadata, by = "case_submitter_id")
 
 expected_rows <- n_genes * n_samples
 cat("Expected rows after reshape (genes x samples):", expected_rows, "\n")
 cat("Actual rows after reshape:", nrow(counts_long), "\n")
 cat("Rows with no matching metadata after join (should be 0):",
-    sum(is.na(counts_long$group)), "\n")
+    sum(is.na(counts_long$histologic_subtype)), "\n")
 ```
 
-# Library Sizes per Sample
+# TPM Sum Sanity Check per Sample
 
-The **library size** (total counts summed across all genes) reflects sequencing depth and, indirectly, RNA input quality. Large, systematic differences in library size between groups can bias downstream comparisons even after normalization, so we inspect it first.
+Unlike raw counts, **TPM values are already normalized so that every sample's protein-coding genes sum to approximately the same total** — that is what "transcripts per million" means by construction. This gives us a cheap, different sanity check than a traditional library-size plot: instead of expecting variation, **we expect near-constancy**, and a sample that deviates noticeably from the rest is the one worth flagging (degraded RNA, a processing anomaly, or a much larger non-protein-coding fraction than everyone else).
 
 ```{r library-sizes, echo=TRUE}
-# Sum counts across all genes for each sample to get its library size.
+# Sum TPM across all protein-coding genes for each sample. Expected to be
+# roughly constant by construction -- an outlier here is the signal.
 library_sizes <- counts_long %>%
-  group_by(sample_id, group) %>%
-  summarise(total_counts = sum(count), .groups = "drop") %>%
-  arrange(total_counts)
+  group_by(case_submitter_id, histologic_subtype) %>%
+  summarise(total_tpm = sum(tpm), .groups = "drop") %>%
+  arrange(total_tpm)
+```
+
+```{r verify-library-sizes, echo=TRUE}
+cat("Per-sample total TPM -- min:", round(min(library_sizes$total_tpm)),
+    " median:", round(median(library_sizes$total_tpm)),
+    " max:", round(max(library_sizes$total_tpm)), "\n")
 ```
 
 ```{r plot-library-sizes, fig.height=7}
-# Order samples by library size for a readable bar chart, colored by group.
+# Order samples by total TPM for a readable bar chart, colored by histology.
 p_libsize <- library_sizes %>%
-  mutate(sample_id = fct_reorder(sample_id, total_counts)) %>%
-  ggplot(aes(x = sample_id, y = total_counts, fill = group)) +
+  mutate(case_submitter_id = fct_reorder(case_submitter_id, total_tpm)) %>%
+  ggplot(aes(x = case_submitter_id, y = total_tpm, fill = histologic_subtype)) +
   geom_col() +
   coord_flip() +
   scale_y_continuous(labels = label_comma()) +
-  scale_fill_manual(values = c(NNK = "#2980b9", WT = "#8e44ad")) +
-  labs(x = NULL, y = "Total counts (library size)",
-       title = "Library size per sample") +
+  scale_fill_manual(values = c(Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
+  labs(x = NULL, y = "Total TPM (protein-coding genes)",
+       title = "Per-sample total TPM -- expected to be near-constant") +
   theme_minimal(base_size = 11)
 
 ggplotly(p_libsize)
@@ -242,17 +249,17 @@ ggplotly(p_libsize)
 
 # Distribution of Expression per Sample
 
-We next check whether the overall distribution of expression values is comparable across samples. Values are log2(count + 1) transformed for this comparison, which compresses the wide dynamic range typical of expression data and is standard practice before visual QC.
+We next check whether the overall distribution of expression values is comparable across samples. Values are log2(TPM + 1) transformed for this comparison, which compresses the wide dynamic range typical of expression data and is standard practice before visual QC.
 
 ```{r plot-log-distribution, echo=TRUE, fig.height=7}
 # log2-transform (adding 1 to avoid log(0)) and draw one boxplot per sample.
 p_boxplot <- counts_long %>%
-  mutate(log2_count = log2(count + 1)) %>%
-  ggplot(aes(x = fct_reorder(sample_id, log2_count, .fun = median), y = log2_count, fill = group)) +
+  mutate(log2_tpm = log2(tpm + 1)) %>%
+  ggplot(aes(x = fct_reorder(case_submitter_id, log2_tpm, .fun = median), y = log2_tpm, fill = histologic_subtype)) +
   geom_boxplot(outlier.size = 0.4, outlier.alpha = 0.3) +
   coord_flip() +
-  scale_fill_manual(values = c(NNK = "#2980b9", WT = "#8e44ad")) +
-  labs(x = NULL, y = "log2(count + 1)",
+  scale_fill_manual(values = c(Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
+  labs(x = NULL, y = "log2(TPM + 1)",
        title = "Per-sample expression distribution") +
   theme_minimal(base_size = 11)
 
@@ -261,33 +268,33 @@ ggplotly(p_boxplot)
 
 # Principal Component Analysis
 
-PCA summarizes genome-wide variation into a small number of orthogonal axes. If `NNK` and `WT` samples separate cleanly along the top components, group is a major driver of overall transcriptional variation; if they do not, group differences (if any) are more subtle than other sources of variability (batch, individual variation, etc.).
+PCA summarizes genome-wide variation into a small number of orthogonal axes. If favorable and unfavorable samples separate cleanly along the top components, histology is a major driver of overall transcriptional variation; if they do not, histology differences (if any) are more subtle than other sources of variability (batch, individual variation, etc.).
 
 <div class="alert-info">
-**Beginner note — what is PCA, in plain language?** Each sample here is a point in a space with 17,616 dimensions (one per gene) — far too many to plot or even imagine. **PCA finds a small number of new axes (PC1, PC2, ...) that capture as much of the sample-to-sample variation as possible**, so we can plot the single biggest source of variation on the x-axis (PC1) and the second-biggest on the y-axis (PC2) and still see most of the real structure in just one 2D scatterplot. No gene-by-gene inspection needed — it is a summary of everything at once.
+**Beginner note — what is PCA, in plain language?** Each sample here is a point in a space with 19,938 dimensions (one per gene) — far too many to plot or even imagine. **PCA finds a small number of new axes (PC1, PC2, ...) that capture as much of the sample-to-sample variation as possible**, so we can plot the single biggest source of variation on the x-axis (PC1) and the second-biggest on the y-axis (PC2) and still see most of the real structure in just one 2D scatterplot. No gene-by-gene inspection needed — it is a summary of everything at once.
 </div>
 
 ```{r filter-and-pca, echo=TRUE}
-# Filter out very low-expressed genes before PCA: near-constant, low-count
+# Filter out very low-expressed genes before PCA: near-constant, low-TPM
 # genes contribute mostly noise to variance-based methods like PCA.
 gene_mean_expr <- counts_long %>%
   group_by(gene_symbol) %>%
-  summarise(mean_count = mean(count), .groups = "drop")
+  summarise(mean_tpm = mean(tpm), .groups = "drop")
 
 n_genes_before_filter <- nrow(gene_mean_expr)
-genes_to_keep <- gene_mean_expr %>% filter(mean_count >= 10) %>% pull(gene_symbol)
+genes_to_keep <- gene_mean_expr %>% filter(mean_tpm >= 1) %>% pull(gene_symbol)
 n_genes_after_filter <- length(genes_to_keep)
 
 cat("Genes before expression filter:", n_genes_before_filter, "\n")
-cat("Genes after filter (mean count >= 10):", n_genes_after_filter,
+cat("Genes after filter (mean TPM >= 1):", n_genes_after_filter,
     sprintf("(%.1f%% retained)", 100 * n_genes_after_filter / n_genes_before_filter), "\n")
 
-# Build a genes x samples matrix of log2-transformed, filtered counts for PCA.
+# Build a genes x samples matrix of log2-transformed, filtered TPM for PCA.
 expr_matrix_wide <- counts_long %>%
   filter(gene_symbol %in% genes_to_keep) %>%
-  mutate(log2_count = log2(count + 1)) %>%
-  select(gene_symbol, sample_id, log2_count) %>%
-  pivot_wider(names_from = sample_id, values_from = log2_count)
+  mutate(log2_tpm = log2(tpm + 1)) %>%
+  select(gene_symbol, case_submitter_id, log2_tpm) %>%
+  pivot_wider(names_from = case_submitter_id, values_from = log2_tpm)
 
 expr_matrix <- as.matrix(expr_matrix_wide[, -1])
 rownames(expr_matrix) <- expr_matrix_wide$gene_symbol
@@ -295,8 +302,8 @@ rownames(expr_matrix) <- expr_matrix_wide$gene_symbol
 # PCA is computed on samples (rows = samples), hence the transpose.
 pca_result <- prcomp(t(expr_matrix), scale. = FALSE)
 
-pca_scores <- as_tibble(pca_result$x, rownames = "sample_id") %>%
-  left_join(sample_metadata, by = "sample_id")
+pca_scores <- as_tibble(pca_result$x, rownames = "case_submitter_id") %>%
+  left_join(sample_metadata, by = "case_submitter_id")
 
 variance_explained <- tibble(
   PC = paste0("PC", seq_along(pca_result$sdev)),
@@ -324,9 +331,9 @@ datatable(
 
 ```{r plot-pca}
 p_pca <- pca_scores %>%
-  ggplot(aes(x = PC1, y = PC2, color = group, text = sample_id)) +
+  ggplot(aes(x = PC1, y = PC2, color = histologic_subtype, text = case_submitter_id)) +
   geom_point(size = 2.5, alpha = 0.85) +
-  scale_color_manual(values = c(NNK = "#2980b9", WT = "#8e44ad")) +
+  scale_color_manual(values = c(Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
   labs(
     x = paste0("PC1 (", variance_explained$variance_explained_pct[1], "%)"),
     y = paste0("PC2 (", variance_explained$variance_explained_pct[2], "%)"),
@@ -339,15 +346,15 @@ ggplotly(p_pca, tooltip = c("text", "colour"))
 
 # Sample-Sample Correlation
 
-As a second, complementary view of sample structure, we compute pairwise Pearson correlations between all samples on the same filtered, log2-transformed matrix. Samples from the same group are expected to correlate more strongly with each other than with samples from the other group; a sample that correlates poorly with everyone (including its own group) is a candidate outlier worth flagging.
+As a second, complementary view of sample structure, we compute pairwise Pearson correlations between all samples on the same filtered, log2-transformed matrix. Samples from the same histology are expected to correlate more strongly with each other than with samples from the other group; a sample that correlates poorly with everyone (including its own group) is a candidate outlier worth flagging.
 
 ```{r correlation-heatmap, echo=TRUE, fig.height=9}
 # Compute the full sample-by-sample correlation matrix.
 sample_cor_matrix <- cor(expr_matrix, method = "pearson")
 
-# Reshape to long format for ggplot's geom_tile, ordering samples by group so
-# block structure (if present) is visually apparent.
-sample_order <- sample_metadata %>% arrange(group, sample_id) %>% pull(sample_id)
+# Reshape to long format for ggplot's geom_tile, ordering samples by
+# histology so block structure (if present) is visually apparent.
+sample_order <- sample_metadata %>% arrange(histologic_subtype, case_submitter_id) %>% pull(case_submitter_id)
 
 sample_cor_long <- as_tibble(sample_cor_matrix, rownames = "sample_a") %>%
   pivot_longer(-sample_a, names_to = "sample_b", values_to = "correlation") %>%
@@ -382,10 +389,10 @@ This report covers the following analyses:
 
 | Section | Description |
 |---------|-------------|
-| Data loading and join verification | Reloaded the count matrix and Module 0 metadata, confirmed the reshape produced the expected number of rows with no unmatched samples. |
-| Library sizes | Computed and visualized total counts per sample to check for systematic sequencing-depth differences between groups. |
-| Expression distributions | Compared log2(count+1) distributions across samples via boxplots to spot outliers. |
-| PCA | Filtered low-expressed genes, ran PCA on log2-transformed data, and visualized sample separation by group with variance-explained reported per component. |
+| Data loading and join verification | Reloaded the TARGET-WT expression matrix and Module 0 metadata, confirmed the reshape produced the expected number of rows with no unmatched samples. |
+| TPM sum sanity check | Computed and visualized total TPM per sample (expected near-constant by construction) to flag any sample that deviates from the rest. |
+| Expression distributions | Compared log2(TPM+1) distributions across samples via boxplots to spot outliers. |
+| PCA | Filtered low-expressed genes, ran PCA on log2-transformed data, and visualized sample separation by histologic subtype with variance-explained reported per component. |
 | Sample-sample correlation | Computed and visualized the full pairwise Pearson correlation matrix to identify potential outlier samples. |
 
 ### Downloadable Outputs

@@ -179,23 +179,23 @@ library(scales)      # axis formatting
 
 <div class="value-boxes">
 <div class="vbox"><div class="vbox-number">4</div><div class="vbox-label">MODULES</div></div>
-<div class="vbox green"><div class="vbox-number">45</div><div class="vbox-label">SAMPLES</div></div>
-<div class="vbox purple"><div class="vbox-number">17,616</div><div class="vbox-label">GENES (RAW)</div></div>
-<div class="vbox red"><div class="vbox-number">GSE303967</div><div class="vbox-label">SOURCE DATASET</div></div>
+<div class="vbox green"><div class="vbox-number">124</div><div class="vbox-label">SAMPLES</div></div>
+<div class="vbox purple"><div class="vbox-number">19,938</div><div class="vbox-label">PROTEIN-CODING GENES</div></div>
+<div class="vbox red"><div class="vbox-number">TARGET-WT</div><div class="vbox-label">SOURCE DATASET</div></div>
 </div>
 
 ## Roadmap
 
 | Module | Title | Focus |
 |--------|-------|-------|
-| 0 | Metadata & Biobanking | Turning raw file names into a traceable, biobank-grade sample sheet |
+| 0 | Metadata & Biobanking | Joining a real expression matrix to a real clinical sheet into a traceable, biobank-grade sample sheet |
 | 1 | Exploratory Analysis & QC | Library sizes, distributions, PCA, sample-sample correlation |
-| 2 | Expression Analysis & Biomarker Discovery | Filtering, per-gene testing, volcano plot, candidate table |
-| 3 | Downstream Interpretation | Curated pediatric-cancer gene sets, enrichment testing, clinical framing |
+| 2 | Expression Analysis & Biomarker Discovery | Filtering, per-gene testing (favorable vs. unfavorable histology), volcano plot, candidate table |
+| 3 | Gene Regulatory Networks | Inferring and comparing gene networks between the two histology subgroups |
 
 This module — **Module 0** — is deliberately the least "computational" and the most conceptual, because in real translational research **the analysis is only as trustworthy as the metadata behind it.** This is especially true in **pediatric rare disease and pediatric oncology**, where cohorts are small by definition, samples are precious and often irreplaceable, and a single mislabeled sample can invalidate months of work. Before touching a single p-value, we need to know: *which sample is which, which samples belong together, and what, exactly, are we comparing?*
 
-**Session plan (≈50 minutes total — this module is the longest, deliberately, since it is also the least technical):** why metadata matters (8 min) → what good metadata looks like (7 min) → biobank basics (5 min) → hands-on: build & debug a mini biobank record (15 min) → plenary debrief (3 min) → closing pediatric lens (2 min) → applying all of this to the real GSE303967 dataset (10 min).
+**Session plan (≈50 minutes total — this module is the longest, deliberately, since it is also the least technical):** why metadata matters (8 min) → what good metadata looks like (7 min) → biobank basics (5 min) → hands-on: build & debug a mini biobank record (15 min) → plenary debrief (3 min) → closing pediatric lens (2 min) → applying all of this to the real TARGET-WT dataset (10 min).
 
 <div class="alert-info">
 **Facilitator note.** No R experience is assumed for this module — Parts 1-6 are deliberately conceptual (tables to read, not code to write), so a beginner group can follow along even before touching RStudio. The first code a participant needs to actually run is in "Applying This to a Real Dataset" below.
@@ -438,25 +438,20 @@ The fields you just built and debugged by hand — `patient_id`, `age`, `sex`, `
 
 # Applying This to a Real Dataset
 
-We now turn to `data/GSE303967_normalized_counts_All_Samples.csv`, a real, public count matrix — and immediately run into a very familiar problem: **it comes with almost no metadata at all**, just column headers. Everything from Parts 1-3 about *why* that is a problem, and everything from Part 4 about *how* to check for damage systematically, applies directly.
+We now turn to real pediatric cancer data from the NCI's **TARGET** program (via the GDC Data Portal): a gene expression matrix and a separate real clinical sheet for **TARGET-WT** — Wilms tumor, the most common pediatric kidney cancer, sequenced through the Children's Oncology Group's NWTS-5 trial. Unlike a toy exercise, these two files were never designed to be read together by us; joining them correctly, and verifying that join, *is* the metadata task.
 
-# Loading the Raw Count Matrix
+# Loading the Raw Expression Matrix
 
-The starting point of almost every genomics analysis is a **count matrix**: rows are genes, columns are samples, and cells hold expression values. Here we work with `r "data/GSE303967_normalized_counts_All_Samples.csv"`, downloaded from the public GEO series **GSE303967**. Note that we could not independently confirm the full experimental design (tissue, exact NNK exposure protocol) from the GEO record at the time of writing — this is flagged explicitly rather than assumed, in line with the rule that nothing is stated as fact unless it has been verified from the data or the source itself.
-
-What we *can* verify directly from the file is loaded and checked below: its dimensions, whether gene identifiers are unique, whether there are missing values, and whether the gene naming convention tells us anything about species.
+The starting point of almost every genomics analysis is a **count matrix**: rows are genes, columns are samples, and cells hold expression values. Here we work with `r "data/TARGET_WT_gene_expression_tpm.csv"` — TPM (transcripts per million) gene expression values for protein-coding genes, downloaded from the GDC Data Portal, project `TARGET-WT`, open-access tier (no controlled-access login required for expression data).
 
 ```{r load-raw-counts, echo=TRUE}
-# Read the raw count matrix exactly as distributed on GEO.
-# The first column (unnamed in the CSV header) holds gene symbols, not a numeric sample.
+# Read the expression matrix exactly as exported from the GDC STAR-Counts
+# pipeline (TPM-normalized, one row per protein-coding gene).
 counts_raw <- read_csv(
-  "data/GSE303967_normalized_counts_All_Samples.csv",
+  "data/TARGET_WT_gene_expression_tpm.csv",
   show_col_types = FALSE
-)
-
-# Rename the first column explicitly so downstream code never relies on a
-# positional, unnamed column.
-counts_raw <- rename(counts_raw, gene_symbol = 1)
+) %>%
+  rename(gene_symbol = gene_name)
 ```
 
 ```{r verify-raw-counts, echo=TRUE}
@@ -488,44 +483,84 @@ cat("Mouse-style symbol 'Tp53' present:", has_mouse_style, "\n")
 ```
 
 <div class="alert-info">
-**Verification note.** The gene symbol capitalisation confirms **human (HGNC) nomenclature** — this is a fact we derived from the data itself, not an assumption. Every value in this matrix is an integer with no decimal component; this is consistent with **upper-quartile (UQ) normalization**, where each sample's raw counts are scaled by a per-sample size factor derived from the upper quartile (typically the 75th percentile) of its non-zero counts and then rounded back to integers — unlike CPM/TPM or DESeq2 median-of-ratios normalization, which are usually left as continuous values. We record this explicitly here because the normalization method changes how the data should be interpreted downstream: UQ-normalized counts still benefit from a log-transform before comparison (used throughout this tutorial), and the still-integer scale should not be mistaken for raw, un-normalized counts.
+**Verification note.** The gene symbol capitalisation confirms **human (HGNC) nomenclature** — expected, but checked rather than assumed. Values here are continuous (not integer), consistent with **TPM**: each gene's read count already scaled by gene length and by the sample's total library size, which is exactly why no additional per-sample size-factor normalization is needed before comparing samples — a log-transform (used throughout this tutorial) is still applied before any statistical test, but the heavier cross-sample normalization step the GSE303967 dataset needed in earlier runs of this tutorial is already done for us here.
 </div>
 
-# Building a Sample Sheet From Column Names
+# Joining the Expression Matrix to a Real Clinical Sheet
 
-The raw file gives us no metadata table at all — only column headers such as `NNK16`, `WT19`, `NNK24`. This is a common, unglamorous reality of public and even in-house data: **the sample sheet has to be reconstructed**. In a proper biobank workflow this information (group, subject/animal ID, collection date, batch, operator) would be captured **at the moment of sample intake**, not reverse-engineered later from a spreadsheet column. We reconstruct what we can here as a worked example of *why* that discipline matters.
+Column headers in the expression matrix are **case identifiers**, e.g. `TARGET-50-PAKGMU` — not group labels like the toy `NNK16`/`WT19` convention from an earlier version of this tutorial. The structure is still worth parsing explicitly rather than assumed: `TARGET` (the program), `50` (the disease code assigned to Wilms tumor within TARGET), then a unique case suffix.
 
-Each column name follows the pattern `<GROUP><ID>`, where `GROUP` is either `NNK` (the exposed/case arm) or `WT` (wild-type/control arm), and `ID` is a numeric identifier. We parse this systematically with `stringr`, rather than by hand, so the process is reproducible and auditable.
-
-```{r build-metadata, echo=TRUE}
-# Extract sample identifiers directly from the column names of the count matrix.
+```{r parse-barcode, echo=TRUE}
+# Parse the real TARGET barcode structure from the expression matrix's
+# column names, rather than assuming every column follows the same pattern.
 sample_ids <- colnames(counts_raw)[-1]
 
-# Parse each sample ID into a structured metadata table:
-#  - group:   the leading letters (NNK = exposed/case, WT = wild-type/control)
-#  - pair_id: the trailing digits, which we hypothesise identifies a matched
-#             subject/animal shared between the two arms.
-sample_metadata <- tibble(sample_id = sample_ids) %>%
+barcode_check <- tibble(case_submitter_id = sample_ids) %>%
+  mutate(disease_code = str_split_i(case_submitter_id, "-", 2))
+
+cat("Unique disease codes found in the column names:",
+    paste(unique(barcode_check$disease_code), collapse = ", "), "\n")
+cat("All columns carry the Wilms-tumor disease code '50':",
+    all(barcode_check$disease_code == "50"), "\n")
+```
+
+The disease code confirms every column belongs to the same cohort — a cheap, worthwhile check before anything else. What the barcode does **not** tell us is histology, age, sex, or outcome: for that we need the separate clinical file GDC ships alongside the expression data, `r "data/TARGET_WT_clinical_raw.csv"`.
+
+```{r load-clinical, echo=TRUE}
+# The real clinical/demographic sheet for the same cohort, from the GDC API.
+clinical_raw <- read_csv("data/TARGET_WT_clinical_raw.csv", show_col_types = FALSE)
+```
+
+```{r table-clinical-raw}
+datatable(
+  clinical_raw,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 10),
+  rownames = FALSE,
+  caption = "The real clinical/demographic fields GDC ships for TARGET-WT: notably richer than GSE303967's column-name-only metadata."
+)
+```
+
+```{r verify-clinical, echo=TRUE}
+cat("Clinical sheet rows:", nrow(clinical_raw), "\n")
+cat("Histologic subtype counts:\n")
+print(count(clinical_raw, histologic_subtype))
+cat("Missing histologic_subtype:", sum(is.na(clinical_raw$histologic_subtype)), "\n")
+cat("Duplicated case_submitter_id in clinical sheet:",
+    sum(duplicated(clinical_raw$case_submitter_id)), "\n")
+```
+
+## The Join, Verified — Not Assumed
+
+This is the central metadata task for this dataset: the expression matrix and the clinical sheet were pulled from GDC independently and must now be joined by `case_submitter_id`. As Part 1 showed with the toy cohort, a join that "runs without error" is not the same as a join that is *correct* — every row must be checked, not just trusted.
+
+```{r join-metadata, echo=TRUE}
+# Join on case_submitter_id and verify no case is silently lost or duplicated
+# in either direction.
+sample_metadata <- tibble(case_submitter_id = sample_ids) %>%
+  left_join(clinical_raw, by = "case_submitter_id") %>%
   mutate(
-    group   = str_extract(sample_id, "^[A-Za-z]+"),
-    pair_id = str_extract(sample_id, "[0-9]+$")
+    age_years = round(age_at_diagnosis_days / 365.25, 1)
   )
 ```
 
-```{r verify-metadata, echo=TRUE}
-# Verify the parsing worked for every single sample: no sample should end up
-# with a missing group or pair_id.
-n_unparsed <- sum(is.na(sample_metadata$group) | is.na(sample_metadata$pair_id))
-cat("Samples that failed to parse:", n_unparsed, "\n")
+```{r verify-join, echo=TRUE}
+# 1. Every expression-matrix sample must find exactly one clinical row.
+n_unmatched <- sum(is.na(sample_metadata$histologic_subtype))
+cat("Expression samples with no matching clinical record:", n_unmatched, "\n")
 
-# Confirm every sample_id round-trips: pasting group + pair_id back together
-# should reproduce the original column name exactly.
-reconstructed <- paste0(sample_metadata$group, sample_metadata$pair_id)
-cat("Round-trip parsing matches original column names for all samples:",
-    all(reconstructed == sample_metadata$sample_id), "\n")
+# 2. No case should appear more than once after the join (would indicate a
+#    duplicated clinical row silently fanning out a sample into two rows).
+cat("Rows before join:", length(sample_ids), " | rows after join:", nrow(sample_metadata), "\n")
+cat("Row count preserved by the join:", length(sample_ids) == nrow(sample_metadata), "\n")
+
+# 3. Every clinical case should also appear in the expression matrix (no
+#    clinical-only "phantom" cases silently carried forward).
+clinical_only <- setdiff(clinical_raw$case_submitter_id, sample_ids)
+cat("Clinical cases with no expression data:", length(clinical_only), "\n")
 ```
 
-The full reconstructed sample sheet — downloadable as CSV/Excel/PDF — is shown below.
+The full joined, verified sample sheet — downloadable as CSV/Excel/PDF — is shown below.
 
 ```{r table-metadata}
 datatable(
@@ -533,60 +568,35 @@ datatable(
   extensions = "Buttons",
   options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 15),
   rownames = FALSE,
-  caption = "Reconstructed sample metadata (one row per sample)."
+  caption = "Joined sample metadata (one row per sample): expression matrix columns matched to the real clinical sheet."
 )
 ```
 
 ## Group Balance
 
 ```{r group-balance, echo=TRUE}
-group_counts <- count(sample_metadata, group, name = "n_samples")
+group_counts <- count(sample_metadata, histologic_subtype, name = "n_samples")
 ```
 
 ```{r table-group-balance}
-kable(group_counts, caption = "Number of samples per group.")
-```
-
-# Traceability: Are the Two Arms Actually Matched?
-
-A **matched-pair design** (the same subject or animal contributing both a case and a control sample) is statistically powerful, because it removes inter-individual variability from the comparison. But it only works if pairing is *complete and verified* — an untracked missing partner silently turns a paired analysis into a biased one. We check this directly from `pair_id`, rather than assuming the study was fully paired.
-
-```{r check-pairing, echo=TRUE}
-# Count how many times each pair_id appears. A fully matched design would show
-# every pair_id exactly twice (once per group).
-pairing_check <- sample_metadata %>%
-  count(pair_id, name = "n_occurrences") %>%
-  arrange(desc(n_occurrences))
-
-n_matched_pairs   <- sum(pairing_check$n_occurrences == 2)
-unmatched_pairids <- pairing_check %>% filter(n_occurrences != 2) %>% pull(pair_id)
-```
-
-```{r table-pairing}
-datatable(
-  pairing_check,
-  extensions = "Buttons",
-  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 15),
-  rownames = FALSE,
-  caption = "Occurrences of each pair_id across the two groups."
-)
+kable(group_counts, caption = "Number of samples per histologic subtype.")
 ```
 
 <div class="alert-info">
-**Result.** `r n_matched_pairs` pair IDs are fully matched (present in both `NNK` and `WT`), while `r length(unmatched_pairids)` pair ID(s) — `r paste(unmatched_pairids, collapse = ", ")` — appear only once. This is documented here explicitly rather than silently dropped, and it means a *fully paired* statistical test cannot be applied to every sample without excluding these unmatched cases. In Module 2 we use an unpaired (two-sample) test across all available samples for this reason, and this decision is stated openly rather than left implicit.
+**Result.** `r group_counts %>% filter(histologic_subtype == "Favorable") %>% pull(n_samples)` samples are **favorable histology** (the better-prognosis majority of Wilms tumor) and `r group_counts %>% filter(histologic_subtype == "Unfavorable") %>% pull(n_samples)` are **unfavorable/anaplastic histology** — the clinically high-risk subtype. This is a real, clinically meaningful grouping, not a reconstructed proxy label, and it is what Module 2 compares statistically.
 </div>
 
 # Why This Matters for Pediatric Rare Disease and Cancer
 
-Everything above — parsing IDs, checking group balance, verifying pairing — may look like bookkeeping, but it is the step where pediatric bioinformatics projects most often fail silently:
+Everything above — parsing the barcode, checking histology counts, verifying the join — may look like bookkeeping, but it is the step where pediatric bioinformatics projects most often fail silently:
 
-- **Small cohorts amplify metadata errors.** A rare pediatric tumor study may enroll a handful of patients per year. One swapped or mislabeled sample can shift a whole cohort's conclusions, whereas in a 10,000-adult cohort the same error is diluted into noise.
-- **Biobanking discipline is what makes rare-disease research possible at all.** Multi-center biobanks (tumor plus matched normal tissue, longitudinal liquid biopsies, family trios for rare Mendelian disease) only remain usable if sample provenance, consent status, and collection metadata are captured at intake — not reconstructed years later from a filename, as we were forced to do here.
-- **Matched designs are common and valuable in pediatric studies** (tumor vs. adjacent normal, pre- vs. post-treatment, proband vs. unaffected sibling), which is exactly why we checked pairing explicitly instead of assuming it.
+- **Small cohorts amplify metadata errors.** A rare pediatric tumor study may enroll a handful of patients per year. One swapped or mislabeled sample can shift a whole cohort's conclusions, whereas in a 10,000-adult cohort the same error is diluted into noise. With only `r sum(sample_metadata$histologic_subtype == "Unfavorable")` anaplastic cases available here, a single mis-joined row would measurably shift that group's results.
+- **This metadata exists at all because of a dedicated, multi-institution effort.** The real clinical fields above (histology, age at diagnosis, sex, vital status) exist because the **Children's Oncology Group** ran a coordinated, multi-center trial (NWTS-5) and the NCI's **TARGET** program standardized and released it — exactly the kind of infrastructure Part 3 described as the alternative to reconstructing metadata from filenames after the fact.
+- **Histology-based risk stratification is a real, high-stakes clinical decision in Wilms tumor.** Anaplastic histology drives more intensive treatment in real clinical practice. The favorable/unfavorable grouping used from here on is not an arbitrary analysis choice — it is the same grouping oncologists use to make treatment decisions.
 
 # Exporting Clean Metadata for Downstream Modules
 
-We save the reconstructed, verified sample sheet so that Modules 1–3 read a single, consistent source of truth rather than re-deriving it independently.
+We save the joined, verified sample sheet so that Modules 1–3 read a single, consistent source of truth rather than re-deriving it independently.
 
 ```{r export-metadata, echo=TRUE}
 # Persist the verified metadata table to disk for reuse by later modules.
@@ -613,10 +623,9 @@ This report covers the following analyses:
 | Part 3 — Biobank basics | Described the three linked components of a biobank record (sample, clinical data, consent) and pediatric-specific consent/assent/re-consent considerations. |
 | Part 4 — Hands-on exercise | Built and debugged a 6-record fictional pediatric mini biobank table (2 incomplete records, 4 seeded errors — duplicate ID, unit inconsistency, missing sex, impossible date), then reproduced every finding with automated `dplyr` checks. |
 | Parts 5-6 — Debrief and pediatric lens | Discussed which errors were easiest/hardest to catch and fixable vs. flag-only, then connected every issue to pediatric-specific consent and age-resolution considerations. |
-| Loading the raw count matrix | Loaded the GSE303967 count matrix and verified its dimensions, gene-symbol uniqueness, absence of missing values, and species (human, from HGNC-style nomenclature); flagged that the "normalized_counts" file actually contains integer values. |
-| Building a sample sheet | Parsed `NNK`/`WT` group and numeric ID directly from column names into a structured, auditable metadata table. |
-| Traceability check | Verified which samples form matched NNK/WT pairs and explicitly flagged the 5 samples with no matched partner. |
-| Exporting metadata | Saved the verified sample sheet to `data/sample_metadata.csv` for reuse in Modules 1–3. |
+| Loading the raw expression matrix | Loaded the real TARGET-WT (Wilms tumor) TPM expression matrix and verified its dimensions, gene-symbol uniqueness, absence of missing values, and species (human, from HGNC-style nomenclature). |
+| Joining to a real clinical sheet | Parsed the real TARGET barcode structure, loaded GDC's clinical/demographic sheet, and joined it to the expression matrix by case ID — verifying no case was lost or duplicated in either direction. |
+| Exporting metadata | Saved the joined, verified sample sheet to `data/sample_metadata.csv` for reuse in Modules 1–3. |
 
 ### Downloadable Outputs
 

@@ -177,7 +177,7 @@ library(scales)      # axis formatting
 
 # From Module 1
 
-Module 1 confirmed that library sizes, expression distributions, and PCA structure are reasonable enough to proceed, while flagging that group is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module goes end-to-end: from raw expression values to a ranked list of **candidate biomarkers**, with an explicit stop along the way to reconnect to the metadata work from Module 0.
+Module 1 confirmed that TPM sums, expression distributions, and PCA structure are reasonable enough to proceed, while flagging that histology is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module goes end-to-end: from expression values to a ranked list of **candidate biomarkers**, with an explicit stop along the way to reconnect to the metadata work from Module 0.
 
 **Session plan (≈60 minutes):** presenting the dataset (8 min) → explicit bridge to Module 0 (7 min) → guided walkthrough of the expression analysis (25 min) → light hands-on threshold exploration (15 min) → closing pediatric lens (5 min).
 
@@ -187,32 +187,32 @@ Module 1 confirmed that library sizes, expression distributions, and PCA structu
 
 # Part 1 — Presenting the Dataset
 
-Every module so far has used the same real, public dataset: `data/GSE303967_normalized_counts_All_Samples.csv`, RNA-seq expression counts for 45 human samples deposited under GEO accession [GSE303967](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE303967), split into two groups by sample name (`NNK` and `WT`, 23 and 22 samples respectively — see Module 0).
+Every module so far has used the same real dataset: **TARGET-WT**, RNA-seq expression (TPM) for 124 real pediatric Wilms tumor patients from the Children's Oncology Group's NWTS-5 trial, released through the NCI's **TARGET** program via the **GDC Data Portal**. Samples split into two groups by real clinical histology (`Favorable`, 82 samples, and `Unfavorable`/anaplastic, 42 samples — see Module 0) — not a proxy label, the same grouping used in real clinical risk stratification for this cancer.
 
 <div class="alert-info">
-**Why this dataset, and a note on pediatric-specific resources.** Dedicated pediatric cancer genomics resources do exist and are worth knowing about: the NCI's **TARGET** program (accessed via the **GDC Data Portal**) is the pediatric-cancer counterpart to the adult-focused **TCGA**, and includes RNA-seq and linked clinical metadata for pediatric cancers such as Wilms tumor. This tutorial uses GSE303967 instead — a real, freely accessible GEO dataset — so that every participant can run the exact same analysis end-to-end on Binder without needing a GDC data-access setup. As established in Module 0, we could not independently verify GSE303967's full clinical/tissue context from its GEO record, and we do not claim it is a pediatric cancer dataset; it is used here purely as a real-world vehicle for the analytical workflow, which is identical regardless of which dataset it is run on — the same code would apply directly to a TARGET-WT expression matrix.
+**A note on pediatric-specific resources.** The NCI's **TARGET** program (via the **GDC Data Portal**) is the pediatric-cancer counterpart to the adult-focused **TCGA** — the two share the same portal and file formats, but TARGET covers cancers TCGA does not, including Wilms tumor. Earlier versions of this tutorial used a different, non-pediatric public dataset (GSE303967) to avoid a GDC-specific download step on Binder; this version uses TARGET-WT directly, with the expression matrix and clinical sheet already assembled into `data/` so no live GDC download is needed during the workshop itself (see the README if you want to see how it was built).
 </div>
 
 # Part 2 — Explicit Bridge to Module 0
 
-Module 0 built and debugged, by hand, a clinical metadata schema with fields like `patient_id`, `age_years`, `sex`, `diagnosis`, and `consent_status`. Let's look at what metadata actually ships with a real, public expression dataset, side by side with that schema.
+Module 0 built and debugged, by hand, a clinical metadata schema with fields like `patient_id`, `age_years`, `sex`, `diagnosis`, and `consent_status`, then joined the real TARGET-WT expression matrix to a real clinical sheet. Let's look at what metadata actually ships with this real dataset, side by side with that schema.
 
 ```{r load-data, echo=TRUE}
-# Reload the count matrix and the verified sample metadata from Module 0.
+# Reload the expression matrix and the verified sample metadata from Module 0.
 counts_raw <- read_csv(
-  "data/GSE303967_normalized_counts_All_Samples.csv",
+  "data/TARGET_WT_gene_expression_tpm.csv",
   show_col_types = FALSE
 ) %>%
-  rename(gene_symbol = 1)
+  rename(gene_symbol = gene_name)
 
 sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
 
 counts_long <- counts_raw %>%
-  pivot_longer(-gene_symbol, names_to = "sample_id", values_to = "count") %>%
-  left_join(sample_metadata, by = "sample_id")
+  pivot_longer(-gene_symbol, names_to = "case_submitter_id", values_to = "tpm") %>%
+  left_join(sample_metadata, by = "case_submitter_id")
 
 cat("Rows with unmatched metadata after join (should be 0):",
-    sum(is.na(counts_long$group)), "\n")
+    sum(is.na(counts_long$histologic_subtype)), "\n")
 ```
 
 ```{r table-real-metadata}
@@ -221,25 +221,25 @@ datatable(
   extensions = "Buttons",
   options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 10),
   rownames = FALSE,
-  caption = "The complete real-world metadata available for this dataset: every field GSE303967 ships with."
+  caption = "The complete real-world metadata available for this dataset: every field TARGET-WT ships with."
 )
 ```
 
 ```{r field-comparison}
 field_comparison <- tribble(
-  ~field,            ~present_in_module0_exercise, ~present_in_gse303967,
-  "sample/patient ID", "Yes (patient_id)",           "Yes (sample_id)",
-  "group/diagnosis",   "Yes (diagnosis, free text)",  "Yes (group: NNK/WT only)",
-  "age",               "Yes (age_years)",             "No",
-  "sex",               "Yes (sex)",                   "No",
+  ~field,            ~present_in_module0_exercise, ~present_in_target_wt,
+  "sample/patient ID", "Yes (patient_id)",           "Yes (case_submitter_id)",
+  "group/diagnosis",   "Yes (diagnosis, free text)",  "Yes (histologic_subtype: Favorable/Unfavorable)",
+  "age",               "Yes (age_years)",             "Yes (age_at_diagnosis_days)",
+  "sex",               "Yes (sex)",                   "Yes (sex_at_birth)",
   "collection date",   "Yes (collection_date)",       "No",
   "consent status",    "Yes (consent_status)",        "No"
 )
-kable(field_comparison, caption = "Same conceptual fields, two very different real-world completeness levels.")
+kable(field_comparison, caption = "Same conceptual fields: TARGET-WT is far closer to the Module 0 schema than a typical public expression dataset.")
 ```
 
 <div class="alert-info">
-**The bridge, stated plainly.** `sample_id` and `group` are literally the same *kind* of information as the `patient_id` and `diagnosis` fields built and debugged by hand in Module 0 — proof that this is not an isolated exercise. But GSE303967 ships with **no age, sex, collection date, or consent information at all** — only a group label reconstructed from the sample name. This is not unusual: many public expression datasets are released with minimal or no linked clinical metadata, for reasons ranging from de-identification requirements to simply not being collected in a machine-readable form. Recognizing that gap — rather than assuming it away — is itself a data-quality skill, and it is a direct, practical consequence of the same metadata discipline taught in Module 0: **you cannot use a field that was never captured**, no matter how good your downstream statistics are.
+**The bridge, stated plainly.** `case_submitter_id` and `histologic_subtype` are literally the same *kind* of information as the `patient_id` and `diagnosis` fields built and debugged by hand in Module 0 — and here, age and sex carry over too, because TARGET is a dedicated, consent-governed pediatric consortium rather than a dataset assembled for a single narrow purpose. It still does **not** ship collection date or a machine-readable consent field via this API — real metadata is rarely complete even from a well-run program, which is exactly why every join is verified rather than trusted, as Module 0 just did.
 </div>
 
 # Part 3 — Guided Walkthrough of the Expression Analysis
@@ -248,36 +248,36 @@ The rest of this module works through one core question, gene by gene: **"is thi
 
 ## Filtering Low-Expressed Genes
 
-Genes with very low or near-zero expression across all samples add statistical noise (unstable variance estimates) without adding biological information, and can even cause a per-gene t-test to fail outright when a group's counts are constant. We apply the same mean-count filter used in Module 1 and report exactly how many genes are removed.
+Genes with very low or near-zero expression across all samples add statistical noise (unstable variance estimates) without adding biological information, and can even cause a per-gene t-test to fail outright when a group's values are constant. We apply the same mean-TPM filter used in Module 1 and report exactly how many genes are removed.
 
 ```{r filter-genes, echo=TRUE}
 gene_mean_expr <- counts_long %>%
   group_by(gene_symbol) %>%
-  summarise(mean_count = mean(count), .groups = "drop")
+  summarise(mean_tpm = mean(tpm), .groups = "drop")
 
 n_genes_before <- nrow(gene_mean_expr)
-genes_to_keep  <- gene_mean_expr %>% filter(mean_count >= 10) %>% pull(gene_symbol)
+genes_to_keep  <- gene_mean_expr %>% filter(mean_tpm >= 1) %>% pull(gene_symbol)
 n_genes_after  <- length(genes_to_keep)
 
 counts_filtered <- counts_long %>%
   filter(gene_symbol %in% genes_to_keep) %>%
-  mutate(log2_count = log2(count + 1))
+  mutate(log2_tpm = log2(tpm + 1))
 ```
 
 ```{r verify-filter, echo=TRUE}
 cat("Genes before filtering:", n_genes_before, "\n")
-cat("Genes after filtering (mean count >= 10):", n_genes_after, "\n")
+cat("Genes after filtering (mean TPM >= 1):", n_genes_after, "\n")
 cat("Genes removed:", n_genes_before - n_genes_after,
     sprintf("(%.1f%% of genes)", 100 * (n_genes_before - n_genes_after) / n_genes_before), "\n")
 ```
 
 <div class="alert-info">
-**Design note.** Module 0 showed that 5 samples have no matched partner in the other group (pair IDs 16, 23, 33, 41, 42). Because pairing is incomplete, we use an **unpaired, two-sample Welch t-test** across all 45 samples rather than a paired test restricted to matched pairs only — this uses all available data but is explicitly not a paired analysis. This trade-off is stated here rather than left implicit.
+**Design note.** Favorable and unfavorable histology are two different groups of patients, not two samples from the same patient — there is no pairing to exploit here, unlike a tumor-vs-adjacent-normal design. We use an **unpaired, two-sample Welch t-test**, the correct choice whenever the two groups being compared are different individuals rather than matched samples from the same individual.
 </div>
 
 ## Per-Gene Differential Expression Testing
 
-For each of the `r n_genes_after` retained genes, we run a Welch two-sample t-test comparing log2(count + 1) between `NNK` and `WT`, using `purrr::map` to apply the test gene-by-gene and `broom::tidy()` to collect the results into a single tidy table — no custom helper function is defined, only standard tidyverse verbs applied to base R's `t.test()`.
+For each of the `r n_genes_after` retained genes, we run a Welch two-sample t-test comparing log2(TPM + 1) between `Favorable` and `Unfavorable` histology, using `purrr::map` to apply the test gene-by-gene and `broom::tidy()` to collect the results into a single tidy table — no custom helper function is defined, only standard tidyverse verbs applied to base R's `t.test()`.
 
 <div class="alert-info">
 **Beginner note — what does `nest()` + `map()` actually do here?** `t.test()` only ever compares two groups at a time, and we have `r n_genes_after` genes to test — one t-test per gene, run automatically instead of copy-pasted `r n_genes_after` times. `nest()` splits the long table into one mini-table per gene, `map()` runs `t.test()` once on each of those mini-tables, and `tidy()` turns each test's result back into a tidy row. The pattern — **nest, map a function over each piece, tidy, unnest** — is one of the most useful in `tidyverse` for "do the same analysis once per group," and it comes up constantly beyond just t-tests.
@@ -288,11 +288,11 @@ For each of the `r n_genes_after` retained genes, we run a Welch two-sample t-te
 # possibly() guards against the rare gene where a group has zero variance,
 # which would otherwise make t.test() error and stop the whole pipeline.
 de_results_raw <- counts_filtered %>%
-  select(gene_symbol, sample_id, group, log2_count) %>%
+  select(gene_symbol, case_submitter_id, histologic_subtype, log2_tpm) %>%
   group_by(gene_symbol) %>%
   nest() %>%
   mutate(
-    test_result = map(data, possibly(~ t.test(log2_count ~ group, data = .x), otherwise = NULL))
+    test_result = map(data, possibly(~ t.test(log2_tpm ~ histologic_subtype, data = .x), otherwise = NULL))
   )
 
 n_tests_failed <- sum(map_lgl(de_results_raw$test_result, is.null))
@@ -302,14 +302,14 @@ de_results <- de_results_raw %>%
   mutate(tidy_result = map(test_result, tidy)) %>%
   unnest(tidy_result) %>%
   ungroup() %>%
-  # estimate1 = mean log2 count in group "NNK", estimate2 = mean in group "WT"
-  # (t.test(formula, data) orders groups alphabetically: NNK before WT).
-  rename(mean_log2_NNK = estimate1, mean_log2_WT = estimate2) %>%
+  # estimate1 = mean log2 TPM in "Favorable", estimate2 = mean in "Unfavorable"
+  # (t.test(formula, data) orders groups alphabetically: Favorable before Unfavorable).
+  rename(mean_log2_Favorable = estimate1, mean_log2_Unfavorable = estimate2) %>%
   mutate(
-    log2FC = mean_log2_NNK - mean_log2_WT,
+    log2FC = mean_log2_Favorable - mean_log2_Unfavorable,
     p_adj  = p.adjust(p.value, method = "BH")
   ) %>%
-  select(gene_symbol, mean_log2_NNK, mean_log2_WT, log2FC, statistic, p.value, p_adj) %>%
+  select(gene_symbol, mean_log2_Favorable, mean_log2_Unfavorable, log2FC, statistic, p.value, p_adj) %>%
   arrange(p_adj)
 ```
 
@@ -322,7 +322,7 @@ cat("Genes significant at p_adj < 0.05 AND |log2FC| > 1:",
 ```
 
 <div class="alert-info">
-**Unexpectedly large signal — flagged, not glossed over.** The number of genes reaching `p_adj < 0.05` above is a very large fraction of all genes tested. A signal this broad is unusual for a typical case/control comparison and is worth treating with caution rather than excitement: it can reflect a genuinely strong global transcriptional response, but it can equally reflect a dominant confounder (e.g. a difference in cell-type composition between the two groups, rather than a uniform treatment effect on a fixed cell population). We inspect *what kind* of genes top the list directly below, not just how many are significant.
+**Signal size, checked rather than assumed.** The number of genes reaching `p_adj < 0.05` here is a moderate fraction of all genes tested — not the near-total-genome signal a dominant confounder (e.g. a difference in cell-type composition between groups) would typically produce. That is a reassuring, not a conclusive, sign: it still does not make any single gene a validated biomarker on its own. We inspect *what kind* of genes top the list directly below, not just how many are significant.
 </div>
 
 ## Volcano Plot
@@ -351,7 +351,7 @@ p_volcano <- volcano_data %>%
     "Not significant"            = "grey70"
   )) +
   labs(
-    x = "log2 fold-change (NNK vs WT)",
+    x = "log2 fold-change (Favorable vs Unfavorable)",
     y = "-log10(adjusted p-value)",
     title = "Volcano plot of per-gene differential expression",
     color = NULL
@@ -369,35 +369,35 @@ A volcano plot summarizes one number per gene (its overall group difference); a 
 # Take the top 30 candidates by adjusted p-value for a readable heatmap.
 top_heatmap_genes <- de_results %>% slice_head(n = 30) %>% pull(gene_symbol)
 
-# Z-score each gene's log2 counts across samples: this puts every gene on a
+# Z-score each gene's log2 TPM across samples: this puts every gene on a
 # comparable scale (mean 0, SD 1) regardless of its absolute expression level.
 heatmap_data <- counts_filtered %>%
   filter(gene_symbol %in% top_heatmap_genes) %>%
-  select(gene_symbol, sample_id, group, log2_count) %>%
+  select(gene_symbol, case_submitter_id, histologic_subtype, log2_tpm) %>%
   group_by(gene_symbol) %>%
-  mutate(z_score = as.numeric(scale(log2_count))) %>%
+  mutate(z_score = as.numeric(scale(log2_tpm))) %>%
   ungroup()
 
-# Order samples by group (so the two groups appear as visually separate
+# Order samples by histology (so the two groups appear as visually separate
 # blocks) and genes by their rank in de_results (most significant at top).
-sample_order <- sample_metadata %>% arrange(group, sample_id) %>% pull(sample_id)
+sample_order <- sample_metadata %>% arrange(histologic_subtype, case_submitter_id) %>% pull(case_submitter_id)
 
 heatmap_data <- heatmap_data %>%
   mutate(
-    sample_id   = factor(sample_id, levels = sample_order),
-    gene_symbol = factor(gene_symbol, levels = rev(top_heatmap_genes))
+    case_submitter_id = factor(case_submitter_id, levels = sample_order),
+    gene_symbol        = factor(gene_symbol, levels = rev(top_heatmap_genes))
   )
 ```
 
 ```{r verify-heatmap-data, echo=TRUE}
 cat("Heatmap genes:", n_distinct(heatmap_data$gene_symbol), "\n")
-cat("Heatmap samples:", n_distinct(heatmap_data$sample_id), "\n")
+cat("Heatmap samples:", n_distinct(heatmap_data$case_submitter_id), "\n")
 cat("Any missing z-scores:", any(is.na(heatmap_data$z_score)), "\n")
 ```
 
 ```{r plot-heatmap, fig.height=9}
 p_heatmap <- heatmap_data %>%
-  ggplot(aes(x = sample_id, y = gene_symbol, fill = z_score, text = paste0(gene_symbol, " / ", sample_id, " (", group, ")"))) +
+  ggplot(aes(x = case_submitter_id, y = gene_symbol, fill = z_score, text = paste0(gene_symbol, " / ", case_submitter_id, " (", histologic_subtype, ")"))) +
   geom_tile() +
   scale_fill_gradient2(low = "#2980b9", mid = "white", high = "#e74c3c", midpoint = 0) +
   labs(x = NULL, y = NULL, fill = "z-score",
@@ -452,7 +452,7 @@ kable(top15, caption = "Top 15 candidates by adjusted p-value.")
 ```
 
 <div class="alert-info">
-**Interpretation, stated plainly.** Several of the top-ranked genes above — for example `AQP2` (aquaporin-2), `RHCG` (Rhesus family C glycoprotein), `SLC4A9` (an anion exchanger), `ATP6V1C2` (a vacuolar ATPase subunit), and `FOXI1` (a transcription factor) — are well-established, highly specific markers of **renal collecting-duct intercalated cells**, not classical carcinogenesis or tobacco-response genes. We state this as an interpretation, not a confirmed fact about the experiment, because — as established in Module 0 — the exact tissue and design of GSE303967 could not be independently verified from its GEO record. The pattern is nonetheless a useful, concrete illustration of an important principle: **a differential expression signal this broad and this thematically narrow should prompt the question "is this a treatment effect, or a difference in what cell population each group actually contains?"** before it is presented as a biomarker panel. We carry this candidate list forward into Module 3 regardless, exactly as it stands — with this caveat attached, not resolved.
+**Interpretation, stated plainly.** The top-ranked genes above span several different functional categories rather than one narrow theme — for example `SOX15` (a SRY-box transcription factor involved in development), `ME1` (malic enzyme, a metabolic/lipogenesis gene), `CIRBP` (a cold/stress-inducible RNA-binding protein), `GGH` (gamma-glutamyl hydrolase, folate metabolism), and `ADAMTS10` (an extracellular-matrix protease). That functional spread is itself informative: unlike a single dominant, narrowly-themed signature (which would suggest one confound driving most of the result), this list looks more consistent with a real, multi-pathway biological difference between favorable and anaplastic histology — though confirming *why* any specific gene differs would need follow-up beyond this one expression comparison. We carry this candidate list forward into Module 3 exactly as it stands.
 </div>
 
 # Part 4 — Light Hands-On: Guided Exploration
@@ -487,7 +487,7 @@ bscols(
   plot_ly(shared_explorer, x = ~log2FC, y = ~neg_log10_padj, type = "scatter", mode = "markers",
           text = ~gene_symbol, hoverinfo = "text",
           marker = list(size = 7, opacity = 0.6, color = "#2980b9")) %>%
-    layout(xaxis = list(title = "log2 fold-change (NNK vs WT)"),
+    layout(xaxis = list(title = "log2 fold-change (Favorable vs Unfavorable)"),
            yaxis = list(title = "-log10(adjusted p-value)"),
            title = "Drag the sliders on the left to filter this plot and the table below")
 )
@@ -510,11 +510,11 @@ datatable(
 
 # Part 5 — Closing Pediatric Lens
 
-This entire analysis ran on **`r nrow(sample_metadata)` samples** (`r sum(sample_metadata$group == "NNK")` `NNK`, `r sum(sample_metadata$group == "WT")` `WT`) — and that number is itself the lesson. Real pediatric cancer genomics resources make the same point at a larger, but still comparatively small, scale: the NCI's **TARGET** program (via the GDC Data Portal) exists specifically because pediatric cancers are individually rare, so cohorts large enough to reach adult-cancer-study statistical power essentially do not exist for most pediatric tumor types — they have to be built through dedicated, multi-institution national consortia rather than assembled from any single center.
+This entire analysis ran on **`r nrow(sample_metadata)` samples** (`r sum(sample_metadata$histologic_subtype == "Favorable")` favorable, `r sum(sample_metadata$histologic_subtype == "Unfavorable")` unfavorable) — and that number, by real-world pediatric-oncology standards, is actually a relatively large, hard-won cohort: it exists only because the NCI's **TARGET** program and the Children's Oncology Group coordinated a multi-institution trial (NWTS-5) specifically to assemble enough anaplastic (unfavorable-histology) cases to study at all, since that subtype is individually rare.
 
-- **A p-value is not a biomarker.** Especially with a broad significant signal like the one flagged earlier in this module, effect size (`log2FC`) and biological plausibility matter as much as, or more than, the adjusted p-value alone.
-- **Pediatric rare disease and cancer studies are almost always underpowered by adult-oncology standards.** With only `r nrow(sample_metadata)` samples here, and adult cancer cohort studies routinely running into the hundreds or thousands, every statistical test in this module runs on a fraction of the data an equivalent adult study would have — which argues for prioritizing genes with **large, consistent effect sizes** over borderline p-values (exactly what Part 4's sliders let you feel directly), and for treating any single-cohort candidate list as hypothesis-generating rather than diagnostic.
-- **Any candidate list needs independent validation** — an orthogonal cohort, an orthogonal assay (e.g. qPCR, IHC), or both — before it can be called a biomarker in the clinical sense. Statistical significance in an expression comparison is also not the same question as clinical relevance: Module 3 takes the natural next step by asking whether these candidates relate to an actual patient outcome, using survival analysis.
+- **A p-value is not a biomarker.** Effect size (`log2FC`) and biological plausibility matter as much as, or more than, the adjusted p-value alone — the moderate, functionally diverse signal seen in this module is a reassuring sign, but still not sufficient on its own.
+- **Pediatric rare disease and cancer studies are almost always underpowered by adult-oncology standards.** With `r sum(sample_metadata$histologic_subtype=="Unfavorable")` unfavorable-histology samples here, and adult cancer cohort studies routinely running into the hundreds or thousands, every statistical test in this module runs on a fraction of the data an equivalent adult study would have — which argues for prioritizing genes with **large, consistent effect sizes** over borderline p-values (exactly what Part 4's sliders let you feel directly), and for treating any single-cohort candidate list as hypothesis-generating rather than diagnostic.
+- **Any candidate list needs independent validation** — an orthogonal cohort, an orthogonal assay (e.g. qPCR, IHC), or both — before it can be called a biomarker in the clinical sense. Statistical significance in an expression comparison is also not the same question as mechanism: Module 3 takes the natural next step by asking how these candidate genes *regulate each other differently* between the two histology groups, using gene regulatory network inference.
 
 ---
 
@@ -524,11 +524,11 @@ This report covers the following analyses:
 
 | Section | Description |
 |---------|-------------|
-| Part 1 — Presenting the dataset | Described GSE303967 and its 45 samples/23 NNK/22 WT groups, and situated it relative to dedicated pediatric cancer genomics resources (TARGET/GDC vs. TCGA) without overclaiming what this specific dataset represents. |
-| Part 2 — Bridge to Module 0 | Compared the real metadata fields available for GSE303967 against the clinical schema built by hand in Module 0, and made explicit which fields (age, sex, collection date, consent) simply do not exist for this dataset. |
-| Part 3 — Guided walkthrough | Filtered low-expressed genes, ran a Welch two-sample t-test per gene (NNK vs WT) on log2-transformed counts using `purrr`/`broom` with BH FDR correction, visualized the result as a volcano plot and a z-scored heatmap of the top 30 candidates, and flagged that several top genes are known renal collecting-duct markers rather than confirmed carcinogenesis genes. |
+| Part 1 — Presenting the dataset | Described TARGET-WT and its 124 samples/82 favorable/42 unfavorable histology groups, and situated it relative to TCGA (TARGET's adult-cancer counterpart on the same GDC portal). |
+| Part 2 — Bridge to Module 0 | Compared the real metadata fields available for TARGET-WT against the clinical schema built by hand in Module 0 — closer to that schema than a typical public dataset, though still missing collection date and machine-readable consent. |
+| Part 3 — Guided walkthrough | Filtered low-expressed genes, ran a Welch two-sample t-test per gene (Favorable vs Unfavorable histology) on log2-transformed TPM using `purrr`/`broom` with BH FDR correction, visualized the result as a volcano plot and a z-scored heatmap of the top 30 candidates, and noted the top genes span diverse functional categories rather than one narrow confound. |
 | Part 4 — Guided exploration | Built a `crosstalk`-linked slider/plot/table explorer over the top 300 candidates, letting fold-change and p-value thresholds be adjusted live to see how the candidate list changes. |
-| Part 5 — Closing pediatric lens | Used this analysis's own sample size (45) as a concrete illustration of pediatric cohort scale, and discussed statistical significance vs. biological relevance under that constraint. |
+| Part 5 — Closing pediatric lens | Used this analysis's own cohort size as an illustration of how rare anaplastic-histology pediatric cases are, and discussed statistical significance vs. biological relevance under that constraint. |
 
 ### Downloadable Outputs
 
