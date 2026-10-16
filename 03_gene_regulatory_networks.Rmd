@@ -178,7 +178,7 @@ library(scales)      # axis formatting
 
 # From Module 2
 
-Module 2 produced a ranked list of candidate biomarkers (`results/differential_expression_results.csv`) comparing favorable vs. unfavorable histology, and noted that the top genes span diverse functional categories rather than one narrow confound — a moderate, plausible signal carried forward, not resolved. This module asks the natural next question.
+Module 2 produced three ranked candidate-biomarker lists: Favorable vs. Unfavorable histology, and — using the 6 real matched-normal samples as a negative control — Favorable vs. Control and Unfavorable vs. Control. This module carries forward the two **vs-control** lists: genes that distinguish a histology subtype from normal kidney are a more principled starting panel for asking "is regulation wired differently here" than genes that merely differ between the two tumor subtypes, which could just as easily reflect a difference in cell-of-origin rather than regulatory rewiring. This module asks the natural next question — and this time, the 6 control samples get a second job: not just shaping the candidate gene panel, but anchoring a third, baseline network to compare both tumor networks against.
 
 **Session plan (≈55 minutes):** why a ranked list isn't the end of the story (8 min) → gene regulatory networks in plain language (12 min) → guided walkthrough on our real dataset (20 min) → light hands-on exploration (10 min) → closing pediatric lens (5 min).
 
@@ -190,10 +190,10 @@ Module 2 produced a ranked list of candidate biomarkers (`results/differential_e
 
 Module 2 answered one question, gene by gene: *does this gene's average level differ between favorable and unfavorable histology?* That question treats every gene in isolation — it says nothing about whether two candidate genes **influence each other**, or sit in entirely separate pathways.
 
-**Reframing the arc:** Module 2 found candidates by asking "is this gene behaving abnormally?" Module 3 asks a different question about those same candidates: **"how do they work together, and does that change between the two histology groups?"** A single gene's p-value cannot answer that — it requires looking at the candidate genes **as a system**, which is exactly what a gene regulatory network does.
+**Reframing the arc:** Module 2 found candidates by asking "is this gene behaving abnormally compared to normal kidney?" Module 3 asks a different question about those same candidates: **"how do they work together, and does that change between the two histology groups?"** A single gene's p-value cannot answer that — it requires looking at the candidate genes **as a system**, which is exactly what a gene regulatory network does.
 
 <div class="alert-info">
-**What we're building toward.** We will infer two separate networks among Module 2's top candidate genes — one using only the 82 favorable-histology samples, one using only the 42 unfavorable-histology samples — and then ask: do the same genes act as regulatory "hubs" in both networks, or does the wiring rearrange between the two histology groups? Unlike Module 3's earlier simulated-survival approach in a previous version of this tutorial, every number in this module comes from real TARGET-WT expression data — nothing here is simulated.
+**What we're building toward.** We will infer **three** separate networks over the same shared panel of Module 2's vs-control candidate genes — one using the 82 favorable-histology tumor samples, one using the 42 unfavorable-histology tumor samples, and one using the 6 real matched-normal samples as a **baseline network**. The baseline lets us ask a sharper question than "do the two tumor networks differ from each other": **does each tumor network differ from a normal-tissue baseline, and if so, how?** This third network is built on only 6 samples — far too few for GENIE3 to separate real co-expression from noise — so we build it anyway as a deliberate point about how fast network inference runs out of statistical power, and read anything it produces with that firmly in mind. Unlike Module 3's earlier simulated-survival approach in a previous version of this tutorial, every number in this module comes from real TARGET-WT expression data — nothing here is simulated.
 </div>
 
 # Part 2 — Gene Regulatory Networks in Plain Language
@@ -251,22 +251,37 @@ visIgraph(toy_graph, idToLabel = TRUE) %>%
 
 # Part 3 — Guided Walkthrough on Our Real Dataset
 
-We now infer two real networks — one per histology group — among Module 2's top candidate genes, using real TARGET-WT expression throughout.
+We now infer three real networks — favorable, unfavorable, and a 6-sample control baseline — among Module 2's vs-control candidate genes, using real TARGET-WT expression throughout.
 
 ```{r load-data, echo=TRUE}
-# Reload the real differential expression results, expression matrix, and metadata.
-de_results <- read_csv("results/differential_expression_results.csv", show_col_types = FALSE)
+# Reload both vs-control differential expression results, the tumor and
+# control expression matrices, and metadata. (The Favorable-vs-Unfavorable
+# result is Module 2's own finding and is not used again here -- see "From
+# Module 2" above for why.)
+de_favorable_vs_control   <- read_csv("results/differential_expression_favorable_vs_control.csv", show_col_types = FALSE)
+de_unfavorable_vs_control <- read_csv("results/differential_expression_unfavorable_vs_control.csv", show_col_types = FALSE)
 counts_raw <- read_csv("data/TARGET_WT_gene_expression_tpm.csv", show_col_types = FALSE) %>%
+  rename(gene_symbol = gene_name)
+counts_control_raw <- read_csv("data/TARGET_WT_control_gene_expression_tpm.csv", show_col_types = FALSE) %>%
   rename(gene_symbol = gene_name)
 sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
 
-# Candidate panel: the top 150 genes from Module 2's ranking. A network over
-# all ~14,000 tested genes would be both unreadable and too slow to fit live;
-# restricting to the strongest candidates keeps both the plot and the
-# runtime workshop-sized.
-n_top_genes <- 150
-top_genes <- de_results %>% slice_head(n = n_top_genes) %>% pull(gene_symbol)
-cat("Candidate panel size:", length(top_genes), "genes\n")
+# Candidate panel: the top 150 genes from EACH vs-control ranking, unioned
+# into one shared gene list. Using the union (rather than each comparison's
+# own top genes separately) keeps both networks built over the exact same
+# node set, which is what makes a direct edge/hub comparison in Part 4
+# meaningful. A network over all ~14,000 tested genes would be both
+# unreadable and too slow to fit live; restricting to top candidates keeps
+# both the plot and the runtime workshop-sized.
+n_top_genes_per_comparison <- 150
+top_genes_favorable   <- de_favorable_vs_control   %>% slice_head(n = n_top_genes_per_comparison) %>% pull(gene_symbol)
+top_genes_unfavorable <- de_unfavorable_vs_control %>% slice_head(n = n_top_genes_per_comparison) %>% pull(gene_symbol)
+panel_genes <- union(top_genes_favorable, top_genes_unfavorable)
+
+cat("Top", n_top_genes_per_comparison, "Favorable-vs-Control genes:", length(top_genes_favorable), "\n")
+cat("Top", n_top_genes_per_comparison, "Unfavorable-vs-Control genes:", length(top_genes_unfavorable), "\n")
+cat("Overlap between the two top-150 lists:", length(intersect(top_genes_favorable, top_genes_unfavorable)), "\n")
+cat("Union candidate panel size:", length(panel_genes), "genes\n")
 ```
 
 ```{r build-matrices, echo=TRUE}
@@ -274,7 +289,7 @@ cat("Candidate panel size:", length(top_genes), "genes\n")
 # then split it into a favorable-only and an unfavorable-only matrix.
 panel_long <- counts_raw %>%
   pivot_longer(-gene_symbol, names_to = "case_submitter_id", values_to = "tpm") %>%
-  filter(gene_symbol %in% top_genes) %>%
+  filter(gene_symbol %in% panel_genes) %>%
   mutate(log2_tpm = log2(tpm + 1))
 
 panel_wide <- panel_long %>%
@@ -289,15 +304,32 @@ unfav_ids <- sample_metadata %>% filter(histologic_subtype == "Unfavorable") %>%
 
 matrix_favorable   <- panel_matrix[, colnames(panel_matrix) %in% fav_ids]
 matrix_unfavorable <- panel_matrix[, colnames(panel_matrix) %in% unfav_ids]
+
+# Same panel, same transform, now over the 6 real matched-normal samples --
+# the baseline network's input. All 6 columns of this file are controls, so
+# no group filtering is needed here (unlike the tumor matrix above).
+panel_long_control <- counts_control_raw %>%
+  pivot_longer(-gene_symbol, names_to = "sample_submitter_id", values_to = "tpm") %>%
+  filter(gene_symbol %in% panel_genes) %>%
+  mutate(log2_tpm = log2(tpm + 1))
+
+panel_wide_control <- panel_long_control %>%
+  select(gene_symbol, sample_submitter_id, log2_tpm) %>%
+  pivot_wider(names_from = sample_submitter_id, values_from = log2_tpm)
+
+matrix_control <- as.matrix(panel_wide_control[, -1])
+rownames(matrix_control) <- panel_wide_control$gene_symbol
 ```
 
 ```{r verify-matrices, echo=TRUE}
 cat("Favorable matrix:", nrow(matrix_favorable), "genes x", ncol(matrix_favorable), "samples\n")
 cat("Unfavorable matrix:", nrow(matrix_unfavorable), "genes x", ncol(matrix_unfavorable), "samples\n")
-cat("Any missing values:", any(is.na(matrix_favorable)) || any(is.na(matrix_unfavorable)), "\n")
+cat("Control matrix:", nrow(matrix_control), "genes x", ncol(matrix_control), "samples\n")
+cat("Any missing values:", any(is.na(matrix_favorable)) || any(is.na(matrix_unfavorable)) || any(is.na(matrix_control)), "\n")
+cat("All", length(panel_genes), "panel genes present in the control matrix:", nrow(matrix_control) == length(panel_genes), "\n")
 ```
 
-## Running GENIE3, Once per Histology Group
+## Running GENIE3, Once per Group — Including the 6-Sample Baseline
 
 ```{r run-genie3, echo=TRUE}
 # GENIE3 uses random forests internally, so a fixed seed is required for a
@@ -309,11 +341,18 @@ weights_favorable <- GENIE3(matrix_favorable, nCores = 1, verbose = FALSE)
 
 set.seed(20261013)
 weights_unfavorable <- GENIE3(matrix_unfavorable, nCores = 1, verbose = FALSE)
+
+# Same call, same seed, on only 6 control samples. GENIE3 does not know or
+# care that this input is statistically underpowered -- it will return a
+# full weight matrix regardless. The caveat belongs in how we READ this
+# network, not in whether we compute it.
+set.seed(20261013)
+weights_control <- GENIE3(matrix_control, nCores = 1, verbose = FALSE)
 ```
 
 ```{r build-edge-lists, echo=TRUE}
 # Keep only the strongest 300 edges per network -- a weight matrix has one
-# entry per ordered gene pair (150 x 150 = 22,500 here), almost all of them
+# entry per ordered gene pair (218 x 218 here), almost all of them
 # negligible noise; the top edges are where the real signal lives.
 n_top_edges <- 300
 
@@ -326,6 +365,11 @@ edges_unfavorable <- getLinkList(weights_unfavorable, threshold = 0) %>%
   as_tibble() %>%
   arrange(desc(weight)) %>%
   slice_head(n = n_top_edges)
+
+edges_control <- getLinkList(weights_control, threshold = 0) %>%
+  as_tibble() %>%
+  arrange(desc(weight)) %>%
+  slice_head(n = n_top_edges)
 ```
 
 ```{r verify-edges, echo=TRUE}
@@ -333,15 +377,18 @@ cat("Favorable network: top", nrow(edges_favorable), "edges, weight range",
     round(min(edges_favorable$weight), 4), "to", round(max(edges_favorable$weight), 4), "\n")
 cat("Unfavorable network: top", nrow(edges_unfavorable), "edges, weight range",
     round(min(edges_unfavorable$weight), 4), "to", round(max(edges_unfavorable$weight), 4), "\n")
+cat("Control network (n=6): top", nrow(edges_control), "edges, weight range",
+    round(min(edges_control$weight), 4), "to", round(max(edges_control$weight), 4), "\n")
 ```
 
-## Visualizing Both Networks
+## Visualizing All Three Networks
 
 ```{r build-graphs, echo=TRUE}
 # Build an igraph object per group, purely from the top-edge list -- the
 # same two columns (regulatoryGene, targetGene) that defined the toy example.
 graph_favorable   <- graph_from_data_frame(edges_favorable %>% select(regulatoryGene, targetGene, weight), directed = TRUE)
 graph_unfavorable <- graph_from_data_frame(edges_unfavorable %>% select(regulatoryGene, targetGene, weight), directed = TRUE)
+graph_control     <- graph_from_data_frame(edges_control %>% select(regulatoryGene, targetGene, weight), directed = TRUE)
 ```
 
 ```{r verify-graphs, echo=TRUE}
@@ -349,6 +396,8 @@ cat("Favorable network: ", vcount(graph_favorable), "nodes,", ecount(graph_favor
     "edges, density", round(edge_density(graph_favorable), 4), "\n")
 cat("Unfavorable network: ", vcount(graph_unfavorable), "nodes,", ecount(graph_unfavorable),
     "edges, density", round(edge_density(graph_unfavorable), 4), "\n")
+cat("Control network (n=6): ", vcount(graph_control), "nodes,", ecount(graph_control),
+    "edges, density", round(edge_density(graph_control), 4), "\n")
 ```
 
 ```{r plot-network-favorable, fig.height=7}
@@ -373,90 +422,125 @@ visIgraph(graph_unfavorable, idToLabel = TRUE) %>%
 **How to read this, same skill as the toy example.** Use the dropdown above either plot to jump straight to a specific gene and see only its direct connections highlighted. A gene with many edges in one network but few (or none) in the other is a candidate for **regulatory rewiring** between favorable and unfavorable histology — a different kind of finding than Module 2's per-gene expression difference, and one that per-gene testing alone cannot see.
 </div>
 
+### The Control Network: Read With Real Caution
+
+<div class="alert-info">
+This third network is built on only 6 samples. Unlike Favorable (82) or Unfavorable (42), GENIE3 here has almost no statistical power to distinguish real co-expression from noise. We build it anyway to make a concrete point: network inference degrades much faster than single-gene testing as sample size shrinks. Read any "hub gene" below as an artifact of chance, not biology.
+</div>
+
+```{r plot-network-control, fig.height=7}
+visIgraph(graph_control, idToLabel = TRUE) %>%
+  visNodes(color = list(background = "#95a5a6", border = "#707b7c", highlight = "#f39c12")) %>%
+  visEdges(arrows = "to", color = list(color = "#95a5a6", opacity = 0.4)) %>%
+  visOptions(highlightNearest = TRUE, nodesIdSelection = TRUE) %>%
+  visPhysics(stabilization = FALSE) %>%
+  visLayout(randomSeed = 1)
+```
+
 ```{r export-networks, echo=TRUE}
-# Persist both edge lists for anyone who wants the complete top-edge tables.
+# Persist all three edge lists for anyone who wants the complete top-edge tables.
 dir.create("results", showWarnings = FALSE)
 write_csv(edges_favorable, "results/gene_network_favorable_edges.csv")
 write_csv(edges_unfavorable, "results/gene_network_unfavorable_edges.csv")
+write_csv(edges_control, "results/gene_network_control_edges.csv")
 
 cat("results/gene_network_favorable_edges.csv written with", nrow(edges_favorable), "rows.\n")
 cat("results/gene_network_unfavorable_edges.csv written with", nrow(edges_unfavorable), "rows.\n")
+cat("results/gene_network_control_edges.csv written with", nrow(edges_control), "rows.\n")
 ```
 
-# Part 4 — Light Hands-On: Comparing the Two Networks
+# Part 4 — Light Hands-On: Comparing Each Tumor Network Against the Control Baseline
 
-A visual side-by-side is a good start, but "does the wiring change?" deserves an actual number. This section builds two comparisons directly from the two edge lists already computed in Part 3: **how many top edges are shared** between the two networks, and **which genes are hubs** in one group but not the other.
+A visual side-by-side is a good start, but "does the wiring change?" deserves an actual number. With the control network as a baseline, the sharper question is no longer just "do favorable and unfavorable differ from each other" but **"does each tumor network differ from normal-tissue wiring, and does it differ in the same way?"** This section computes, directly from the three edge lists already built in Part 3: **how many top edges each tumor network shares with the control baseline** (and with each other, for completeness), and **which genes are hubs** in each group.
 
 ```{r overlap-by-cutoff, echo=TRUE}
-# Re-rank both edge lists and compare at several cutoffs, so "95 shared out
-# of the top 300" can be seen in context -- is overlap roughly constant as
-# the cutoff grows, or does it change sharply?
+# Re-rank all three edge lists and compare at several cutoffs, so e.g. "12
+# shared out of the top 300" can be seen in context -- is overlap roughly
+# constant as the cutoff grows, or does it change sharply? Favorable-vs-
+# Unfavorable is kept alongside the two vs-control comparisons for
+# completeness, but the vs-control columns are the ones that answer "did
+# tumor wiring actually move away from normal."
 cutoffs <- c(50, 100, 200, 300)
 
 edge_pair <- function(df) paste(df$regulatoryGene, df$targetGene)
 
 overlap_table <- tibble(top_n_edges = cutoffs) %>%
   mutate(
-    shared_edges = map_dbl(top_n_edges, function(n) {
-      fav_pairs   <- edge_pair(edges_favorable %>% slice_head(n = n))
-      unfav_pairs <- edge_pair(edges_unfavorable %>% slice_head(n = n))
-      length(intersect(fav_pairs, unfav_pairs))
+    favorable_vs_control   = map_dbl(top_n_edges, function(n) {
+      length(intersect(edge_pair(edges_favorable %>% slice_head(n = n)),
+                        edge_pair(edges_control   %>% slice_head(n = n))))
     }),
-    pct_shared = round(100 * shared_edges / top_n_edges, 1)
+    unfavorable_vs_control = map_dbl(top_n_edges, function(n) {
+      length(intersect(edge_pair(edges_unfavorable %>% slice_head(n = n)),
+                        edge_pair(edges_control     %>% slice_head(n = n))))
+    }),
+    favorable_vs_unfavorable = map_dbl(top_n_edges, function(n) {
+      length(intersect(edge_pair(edges_favorable   %>% slice_head(n = n)),
+                        edge_pair(edges_unfavorable %>% slice_head(n = n))))
+    })
   )
 ```
 
 ```{r table-overlap, echo=TRUE}
-kable(overlap_table, caption = "Shared top edges between the favorable and unfavorable networks, at increasing cutoffs.")
+kable(overlap_table, caption = "Shared top edges at increasing cutoffs: each tumor network vs. the control baseline, and the two tumor networks vs. each other.")
 ```
 
 <div class="alert-info">
-**Reading this table.** If the two networks were identical, every row would show 100% shared. If they shared nothing at all, every row would show 0%. The real answer sits in between — a real, partial rewiring of the regulatory relationships among these candidate genes between favorable and unfavorable histology, not a wholesale replacement and not no change at all.
+**Reading this table.** Low overlap between a tumor network and the control network at a given cutoff means that network's strongest regulatory relationships are **not** the ones present in normal kidney tissue — i.e. real rewiring relative to baseline, not just relative to the other tumor subtype. Keep the control network's n=6 caveat in mind here too: some of its apparent "disagreement" with the tumor networks is genuine signal, but some of it is simply noise from too few samples, and this table cannot tell the two apart on its own.
 </div>
 
-## Hub Genes: Shared vs. Histology-Specific
+## Hub Genes: Shared vs. Group-Specific
 
 ```{r hub-genes, echo=TRUE}
 # A gene's out-degree here -- how many times it appears as the regulatorygene
 # in the top edge list -- is a simple, transparent stand-in for "how
-# hub-like is this gene in this network." Compare the top 5 hubs per group.
+# hub-like is this gene in this network." Compare the top 5 hubs per group,
+# including the (unreliable, n=6) control network.
 hubs_favorable <- edges_favorable %>%
   count(regulatoryGene, name = "out_degree") %>%
   arrange(desc(out_degree)) %>%
   slice_head(n = 5) %>%
-  mutate(histology = "Favorable")
+  mutate(group = "Favorable")
 
 hubs_unfavorable <- edges_unfavorable %>%
   count(regulatoryGene, name = "out_degree") %>%
   arrange(desc(out_degree)) %>%
   slice_head(n = 5) %>%
-  mutate(histology = "Unfavorable")
+  mutate(group = "Unfavorable")
 
-hub_comparison <- bind_rows(hubs_favorable, hubs_unfavorable)
+hubs_control <- edges_control %>%
+  count(regulatoryGene, name = "out_degree") %>%
+  arrange(desc(out_degree)) %>%
+  slice_head(n = 5) %>%
+  mutate(group = "Control (n=6)")
+
+hub_comparison <- bind_rows(hubs_favorable, hubs_unfavorable, hubs_control)
 ```
 
 ```{r verify-hubs, echo=TRUE}
-shared_hubs <- intersect(hubs_favorable$regulatoryGene, hubs_unfavorable$regulatoryGene)
-cat("Top-5 hub genes shared between both networks:", paste(shared_hubs, collapse = ", "), "\n")
+shared_tumor_hubs <- intersect(hubs_favorable$regulatoryGene, hubs_unfavorable$regulatoryGene)
+cat("Top-5 hub genes shared between the two TUMOR networks:", paste(shared_tumor_hubs, collapse = ", "), "\n")
 cat("Favorable-only top-5 hubs:", paste(setdiff(hubs_favorable$regulatoryGene, hubs_unfavorable$regulatoryGene), collapse = ", "), "\n")
 cat("Unfavorable-only top-5 hubs:", paste(setdiff(hubs_unfavorable$regulatoryGene, hubs_favorable$regulatoryGene), collapse = ", "), "\n")
+cat("Shared tumor hubs that are ALSO a control-network hub (weaker evidence they're tumor-specific):",
+    paste(intersect(shared_tumor_hubs, hubs_control$regulatoryGene), collapse = ", "), "\n")
 ```
 
 ```{r plot-hub-comparison, fig.height=5}
 p_hubs <- hub_comparison %>%
-  ggplot(aes(x = fct_reorder(regulatoryGene, out_degree), y = out_degree, fill = histology)) +
+  ggplot(aes(x = fct_reorder(regulatoryGene, out_degree), y = out_degree, fill = group)) +
   geom_col(position = position_dodge(width = 0.7), width = 0.6) +
   coord_flip() +
-  scale_fill_manual(values = c(Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
+  scale_fill_manual(values = c(Favorable = "#2980b9", Unfavorable = "#e74c3c", `Control (n=6)` = "#95a5a6")) +
   labs(x = NULL, y = "Out-degree (top 300 edges)",
-       title = "Top 5 hub genes per histology group") +
+       title = "Top 5 hub genes per group") +
   theme_minimal(base_size = 11)
 
 ggplotly(p_hubs)
 ```
 
 <div class="alert-info">
-**What to look for.** A gene appearing as a top hub in **both** bars is a candidate "core" regulator that stays important regardless of histology. A gene that is a top hub in only one group is a more interesting candidate for histology-specific rewiring — exactly the kind of result a per-gene differential expression test (Module 2) cannot reveal on its own, because a gene can be a network hub without itself being significantly differentially expressed.
+**What to look for.** A gene that is a top hub in a tumor network but **not** in the control network is a stronger candidate for genuine tumor-specific rewiring than one that shows up as a hub everywhere, including the control — the latter is more likely a general feature of this gene panel (or noise from the control's small n) than something specific to disease biology. A gene hub-like in both tumor networks but absent from control is the most interesting "core tumor regulator" candidate this module can offer. As always: a candidate for rewiring, not proof of it.
 </div>
 
 ```{r export-hubs, echo=TRUE}
@@ -466,11 +550,11 @@ cat("results/gene_network_hub_comparison.csv written with", nrow(hub_comparison)
 
 # Part 5 — Closing Pediatric Lens
 
-This module's networks were inferred on **`r ncol(matrix_favorable)` favorable** and **only `r ncol(matrix_unfavorable)` unfavorable** samples. That asymmetry is not a technical inconvenience — it is the pediatric-rare-disease problem from every earlier module, now showing up as a network-stability issue:
+This module's networks were inferred on **`r ncol(matrix_favorable)` favorable**, **`r ncol(matrix_unfavorable)` unfavorable**, and **only `r ncol(matrix_control)` control** samples. That three-way asymmetry is not a technical inconvenience — it is the pediatric-rare-disease problem from every earlier module, now showing up as a network-stability issue, with the control network as the most extreme case:
 
-- **Network inference needs more samples than a single t-test, not fewer.** A per-gene test (Module 2) estimates one mean difference per gene. A network estimates **relationships between every pair of genes** — with `r n_top_genes` candidate genes, that is thousands of relationships being estimated from just `r ncol(matrix_unfavorable)` unfavorable-histology samples. The unfavorable network here is built on real data, but it is the less statistically stable of the two, and should be read with that firmly in mind.
-- **A "hub" found in `r ncol(matrix_unfavorable)` samples deserves real skepticism before being called a finding.** With this few samples, re-sampling even a handful of patients could plausibly shift which gene looks like a hub. The honest framing from Part 4 — "a candidate for rewiring," not "proof of rewiring" — matters even more here than the comparable caveat did for Module 2's p-values.
-- **This is precisely why dedicated pediatric consortia exist.** The NCI's TARGET program pools patients across many institutions specifically because no single pediatric oncology center sees enough anaplastic Wilms tumor cases in a reasonable timeframe to produce a stable network estimate (or even a stable t-test) on its own — the same small-numbers problem behind every module in this tutorial, now showing up in its network-inference form.
+- **Network inference needs more samples than a single t-test, not fewer.** A per-gene test (Module 2) estimates one mean difference per gene. A network estimates **relationships between every pair of genes** — with `r length(panel_genes)` candidate genes, that is thousands of relationships being estimated from just `r ncol(matrix_control)` control samples. The unfavorable network is already the less stable of the two tumor networks; the control network, at `r ncol(matrix_control)` samples, is built from too little data to trust its specific wiring at all — only its use as a rough baseline for "is this edge/hub also present in normal tissue" is defensible, not its individual edges or hubs in isolation.
+- **A "hub" found in `r ncol(matrix_control)` samples deserves real skepticism before being called a finding.** With this few samples, re-sampling even a single patient could plausibly change which gene looks like a hub. The honest framing from Part 4 — "a candidate for rewiring," not "proof of rewiring" — matters even more here than the comparable caveat did for Module 2's p-values, and most of all for the control network.
+- **This is precisely why dedicated pediatric consortia exist.** The NCI's TARGET program pools patients across many institutions specifically because no single pediatric oncology center sees enough anaplastic Wilms tumor cases — or, even more acutely, enough matched-normal kidney samples — in a reasonable timeframe to produce a stable network estimate (or even a stable t-test) on its own — the same small-numbers problem behind every module in this tutorial, now showing up in its sharpest network-inference form.
 
 Real regulatory-network findings in pediatric oncology need the same thing a real biomarker candidate needs: independent validation in another cohort before the wiring difference is treated as established biology rather than a hypothesis worth testing further.
 
@@ -484,15 +568,15 @@ This report covers the following analyses:
 |---------|-------------|
 | Part 1 — Why a ranked list isn't the end of the story | Reframed the Module 2 → Module 3 arc: from "is this gene abnormal?" to "how do these genes regulate each other, and does that differ by histology?" |
 | Part 2 — Gene regulatory networks in plain language | Explained the GENIE3 random-forest intuition and how to read a network diagram using a purely illustrative 5-gene toy example with a known hub gene. |
-| Part 3 — Guided walkthrough | Built favorable-only and unfavorable-only expression matrices for Module 2's top 150 candidate genes, ran GENIE3 (seeded for reproducibility) on each, and visualized both networks as interactive, drag-able `visNetwork` graphs. |
-| Part 4 — Comparing the two networks | Computed real top-edge overlap between the two networks across several cutoffs, and compared each group's top-5 hub genes to find shared vs. histology-specific regulators. |
-| Part 5 — Closing pediatric lens | Used the stark favorable/unfavorable sample-size gap to explain why network inference is even more sample-hungry than per-gene testing, and why dedicated consortia like TARGET exist. |
+| Part 3 — Guided walkthrough | Built a shared candidate panel from the union of Module 2's top 150 Favorable-vs-Control and top 150 Unfavorable-vs-Control genes, built favorable-only, unfavorable-only, and control-only (n=6) expression matrices over that panel, ran GENIE3 (seeded for reproducibility) on each, and visualized all three networks as interactive, drag-able `visNetwork` graphs. |
+| Part 4 — Comparing against the control baseline | Computed real top-edge overlap between each tumor network and the control baseline (plus favorable-vs-unfavorable, for completeness) across several cutoffs, and compared top-5 hub genes across all three groups to flag which hubs are tumor-specific vs. also present in the control network. |
+| Part 5 — Closing pediatric lens | Used the three-way favorable/unfavorable/control sample-size gap — most acute for the 6-sample control — to explain why network inference is even more sample-hungry than per-gene testing, and why dedicated consortia like TARGET exist. |
 
 ### Downloadable Outputs
 
 - **Tables**: the toy-network edge table, edge-overlap-by-cutoff table, and hub-comparison table all render via `kable()`.
-- **Plots**: both `visNetwork` graphs (favorable, unfavorable) are interactive — drag nodes, search by gene via the dropdown, hover to highlight direct connections; the hub-comparison bar chart includes a PNG download button via the plotly toolbar.
-- **Files**: `results/gene_network_favorable_edges.csv`, `results/gene_network_unfavorable_edges.csv` (top 300 edges per histology group), and `results/gene_network_hub_comparison.csv` (top-5 hub genes per group).
+- **Plots**: all three `visNetwork` graphs (favorable, unfavorable, control) are interactive — drag nodes, search by gene via the dropdown, hover to highlight direct connections; the hub-comparison bar chart includes a PNG download button via the plotly toolbar.
+- **Files**: `results/gene_network_favorable_edges.csv`, `results/gene_network_unfavorable_edges.csv`, `results/gene_network_control_edges.csv` (top 300 edges per group), and `results/gene_network_hub_comparison.csv` (top-5 hub genes per group).
 
 <div class="alert-info">
 **Facilitator note.** This is the end of the workshop content. Suggested wrap-up / Q&A: **10 minutes** — a good closing prompt is to ask the group to trace one candidate gene's journey across all four modules: a real case barcode joined to real clinical histology (Module 0) → a QC-passed sample (Module 1) → a statistically significant candidate (Module 2) → a node in a regulatory network whose connections depend on which histology group it came from (Module 3).

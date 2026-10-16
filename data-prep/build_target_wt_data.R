@@ -105,3 +105,73 @@ dir.create("data", showWarnings = FALSE)
 write_csv(expr_matrix, "data/TARGET_WT_gene_expression_tpm.csv")
 write_csv(manifest %>% select(-file_id), "data/TARGET_WT_clinical_raw.csv")
 cat("Wrote data/TARGET_WT_gene_expression_tpm.csv and data/TARGET_WT_clinical_raw.csv\n")
+
+# ---- 5. Same process for the real matched-normal ("Solid Tissue Normal") ----
+# samples -- a small but genuine negative control used in Module 2. Only a
+# handful exist for the whole TARGET-WT project.
+filters_normal <- list(
+  op = "and",
+  content = list(
+    list(op = "=", content = list(field = "cases.project.project_id", value = "TARGET-WT")),
+    list(op = "=", content = list(field = "files.experimental_strategy", value = "RNA-Seq")),
+    list(op = "=", content = list(field = "files.access", value = "open")),
+    list(op = "=", content = list(field = "files.data_type", value = "Gene Expression Quantification")),
+    list(op = "=", content = list(field = "cases.samples.sample_type", value = "Solid Tissue Normal"))
+  )
+)
+fields_normal <- paste(c("file_id", "cases.submitter_id", "cases.samples.submitter_id", "cases.samples.sample_type"), collapse = ",")
+
+resp_normal <- GET(
+  "https://api.gdc.cancer.gov/files",
+  query = list(filters = toJSON(filters_normal, auto_unbox = TRUE), fields = fields_normal, size = 50, format = "JSON")
+)
+hits_normal <- fromJSON(content(resp_normal, as = "text", encoding = "UTF-8"), simplifyVector = FALSE)$data$hits
+cat("Normal-tissue files in manifest:", length(hits_normal), "\n")
+
+# sample_submitter_id (the full barcode, e.g. "...-11A") is used as the join
+# key here instead of case_submitter_id, because several of these patients
+# ALSO have a tumor sample in the manifest above -- same case_submitter_id,
+# two different biological samples. Keying by the full sample barcode avoids
+# silently colliding the two.
+manifest_normal <- map_dfr(hits_normal, function(h) {
+  cs <- h$cases[[1]]
+  sample_id <- keep(cs$samples, ~ .x$sample_type == "Solid Tissue Normal")[[1]]$submitter_id
+  tibble(file_id = h$file_id, sample_submitter_id = sample_id, case_submitter_id = cs$submitter_id)
+})
+cat("Normal-tissue manifest rows:", nrow(manifest_normal), "\n")
+
+for (i in seq_len(nrow(manifest_normal))) {
+  fid <- manifest_normal$file_id[i]
+  dest <- file.path(raw_dir, paste0(fid, ".tsv"))
+  if (file.exists(dest) && file.size(dest) > 1e6) next
+  tryCatch(
+    download.file(paste0("https://api.gdc.cancer.gov/data/", fid), dest, quiet = TRUE, mode = "wb"),
+    error = function(e) cat("FAILED:", fid, "-- retry manually\n")
+  )
+}
+
+parse_one_normal <- function(file_id, sample_id) {
+  path <- file.path(raw_dir, paste0(file_id, ".tsv"))
+  read_tsv(path, skip = 1, show_col_types = FALSE) %>%
+    filter(
+      !gene_id %in% c("N_unmapped", "N_multimapping", "N_noFeature", "N_ambiguous"),
+      gene_type == "protein_coding"
+    ) %>%
+    select(gene_name, tpm_unstranded) %>%
+    group_by(gene_name) %>%
+    summarise(tpm_unstranded = sum(tpm_unstranded), .groups = "drop") %>%
+    rename(!!sample_id := tpm_unstranded)
+}
+
+parsed_normal_list <- map2(manifest_normal$file_id, manifest_normal$sample_submitter_id, parse_one_normal)
+control_matrix <- reduce(parsed_normal_list, full_join, by = "gene_name")
+
+cat("Control matrix:", nrow(control_matrix), "genes x", ncol(control_matrix) - 1, "samples\n")
+cat("Any NA after join (should be 0):", sum(is.na(control_matrix)), "\n")
+cat("Any duplicated gene_name (should be 0):", sum(duplicated(control_matrix$gene_name)), "\n")
+cat("Gene set identical to tumor matrix:", setequal(control_matrix$gene_name, expr_matrix$gene_name), "\n")
+
+write_csv(control_matrix, "data/TARGET_WT_control_gene_expression_tpm.csv")
+write_csv(manifest_normal %>% select(sample_submitter_id, case_submitter_id) %>% mutate(sample_type = "Solid Tissue Normal"),
+          "data/TARGET_WT_control_clinical_raw.csv")
+cat("Wrote data/TARGET_WT_control_gene_expression_tpm.csv and data/TARGET_WT_control_clinical_raw.csv\n")

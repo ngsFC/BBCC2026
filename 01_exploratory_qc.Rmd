@@ -177,7 +177,7 @@ library(scales)      # axis formatting
 
 Module 0 joined the real TARGET-WT (Wilms tumor) expression matrix to a real clinical sheet into a verified, structured sample sheet (`data/sample_metadata.csv`): 124 samples, 82 **favorable** and 42 **unfavorable (anaplastic)** histology, with every case matched and no unmatched or duplicated rows. Before we compare groups statistically in Module 2, this module asks a more basic question: **do the samples themselves look trustworthy?** Quality control is not a formality — an unnoticed outlier sample, batch effect, or mislabeled group can produce a "biomarker" that is really just a technical artifact.
 
-**Session plan (≈35 minutes):** recap & reload the data (5 min) → library sizes (5 min) → expression distributions (5 min) → PCA, explained and plotted (12 min) → sample-sample correlation (5 min) → pediatric QC takeaways (3 min).
+**Session plan (≈35 minutes):** recap & reload the data (5 min) → library sizes (5 min) → PCA, explained and plotted (15 min) → sample-sample correlation (7 min) → pediatric QC takeaways (3 min).
 
 <div class="alert-info">
 **Facilitator note.** This module is the first one with genuinely new statistical ideas (PCA, correlation). Each plot below is interactive (hover, zoom, download via the plotly toolbar) — encourage the group to hover over individual points/cells rather than just reading the static shape, it makes the QC checks much more concrete for beginners.
@@ -245,25 +245,6 @@ p_libsize <- library_sizes %>%
   theme_minimal(base_size = 11)
 
 ggplotly(p_libsize)
-```
-
-# Distribution of Expression per Sample
-
-We next check whether the overall distribution of expression values is comparable across samples. Values are log2(TPM + 1) transformed for this comparison, which compresses the wide dynamic range typical of expression data and is standard practice before visual QC.
-
-```{r plot-log-distribution, echo=TRUE, fig.height=7}
-# log2-transform (adding 1 to avoid log(0)) and draw one boxplot per sample.
-p_boxplot <- counts_long %>%
-  mutate(log2_tpm = log2(tpm + 1)) %>%
-  ggplot(aes(x = fct_reorder(case_submitter_id, log2_tpm, .fun = median), y = log2_tpm, fill = histologic_subtype)) +
-  geom_boxplot(outlier.size = 0.4, outlier.alpha = 0.3) +
-  coord_flip() +
-  scale_fill_manual(values = c(Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
-  labs(x = NULL, y = "log2(TPM + 1)",
-       title = "Per-sample expression distribution") +
-  theme_minimal(base_size = 11)
-
-ggplotly(p_boxplot)
 ```
 
 # Principal Component Analysis
@@ -352,27 +333,30 @@ As a second, complementary view of sample structure, we compute pairwise Pearson
 # Compute the full sample-by-sample correlation matrix.
 sample_cor_matrix <- cor(expr_matrix, method = "pearson")
 
-# Reshape to long format for ggplot's geom_tile, ordering samples by
-# histology so block structure (if present) is visually apparent.
+# Order samples by histology so block structure (if present) is visually apparent.
 sample_order <- sample_metadata %>% arrange(histologic_subtype, case_submitter_id) %>% pull(case_submitter_id)
+sample_cor_matrix <- sample_cor_matrix[sample_order, sample_order]
 
-sample_cor_long <- as_tibble(sample_cor_matrix, rownames = "sample_a") %>%
-  pivot_longer(-sample_a, names_to = "sample_b", values_to = "correlation") %>%
-  mutate(
-    sample_a = factor(sample_a, levels = sample_order),
-    sample_b = factor(sample_b, levels = sample_order)
+# NOTE: with 124 samples this is a 124x124 = 15,376-cell matrix. Routing it
+# through ggplot's geom_tile() + ggplotly() turns every cell into its own
+# plotly shape, which bloated this report's HTML to ~60MB (over GitHub's
+# 50MB warning threshold). plotly's native heatmap trace renders the same
+# matrix as a single trace, so we use it directly here instead of the usual
+# ggplot2-then-ggplotly pattern.
+plot_ly(
+  z = sample_cor_matrix,
+  x = sample_order,
+  y = sample_order,
+  type = "heatmap",
+  colors = colorRamp(c("#e74c3c", "white", "#2980b9")),
+  zmid = 0.9,
+  hovertemplate = "%{x} vs %{y}<br>correlation: %{z:.3f}<extra></extra>"
+) %>%
+  layout(
+    title = "Pairwise sample correlation (Pearson, log2 scale)",
+    xaxis = list(showticklabels = FALSE, title = ""),
+    yaxis = list(showticklabels = FALSE, title = "")
   )
-
-p_corr <- sample_cor_long %>%
-  ggplot(aes(x = sample_a, y = sample_b, fill = correlation)) +
-  geom_tile() +
-  scale_fill_gradient2(low = "#e74c3c", mid = "white", high = "#2980b9", midpoint = 0.9) +
-  labs(x = NULL, y = NULL, title = "Pairwise sample correlation (Pearson, log2 scale)") +
-  theme_minimal(base_size = 8) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6),
-        axis.text.y = element_text(size = 6))
-
-ggplotly(p_corr)
 ```
 
 # Why QC Is Non-Negotiable in Pediatric Data
@@ -391,14 +375,13 @@ This report covers the following analyses:
 |---------|-------------|
 | Data loading and join verification | Reloaded the TARGET-WT expression matrix and Module 0 metadata, confirmed the reshape produced the expected number of rows with no unmatched samples. |
 | TPM sum sanity check | Computed and visualized total TPM per sample (expected near-constant by construction) to flag any sample that deviates from the rest. |
-| Expression distributions | Compared log2(TPM+1) distributions across samples via boxplots to spot outliers. |
 | PCA | Filtered low-expressed genes, ran PCA on log2-transformed data, and visualized sample separation by histologic subtype with variance-explained reported per component. |
 | Sample-sample correlation | Computed and visualized the full pairwise Pearson correlation matrix to identify potential outlier samples. |
 
 ### Downloadable Outputs
 
 - **Tables**: the variance-explained table includes CSV / Excel / PDF download buttons.
-- **Plots**: all interactive plots (library size, expression distribution, PCA, correlation heatmap) include a PNG download button via the plotly toolbar.
+- **Plots**: all interactive plots (library size, PCA, correlation heatmap) include a PNG download button via the plotly toolbar.
 
 <div class="alert-info">
 **Facilitator note.** Suggested break before Module 2: **10 minutes.**

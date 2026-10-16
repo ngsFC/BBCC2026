@@ -179,7 +179,7 @@ library(scales)      # axis formatting
 
 Module 1 confirmed that TPM sums, expression distributions, and PCA structure are reasonable enough to proceed, while flagging that histology is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module goes end-to-end: from expression values to a ranked list of **candidate biomarkers**, with an explicit stop along the way to reconnect to the metadata work from Module 0.
 
-**Session plan (≈60 minutes):** presenting the dataset (8 min) → explicit bridge to Module 0 (7 min) → guided walkthrough of the expression analysis (25 min) → light hands-on threshold exploration (15 min) → closing pediatric lens (5 min).
+**Session plan (≈60 minutes):** presenting the dataset (5 min) → explicit bridge to Module 0 (5 min) → guided walkthrough, Favorable vs Unfavorable (20 min) → adding a real negative control, tumor vs normal (10 min) → light hands-on threshold exploration (10 min) → closing pediatric lens (5 min).
 
 <div class="alert-info">
 **Facilitator note.** This is the statistically densest module — a per-gene t-test, multiple-testing correction, and two plot types in one go. Beginners do not need to read the `nest()`/`map()` code closely (see the callout before it); the goal is to understand *what* each step does and why, not to type the pipeline from memory.
@@ -452,7 +452,148 @@ kable(top15, caption = "Top 15 candidates by adjusted p-value.")
 ```
 
 <div class="alert-info">
-**Interpretation, stated plainly.** The top-ranked genes above span several different functional categories rather than one narrow theme — for example `SOX15` (a SRY-box transcription factor involved in development), `ME1` (malic enzyme, a metabolic/lipogenesis gene), `CIRBP` (a cold/stress-inducible RNA-binding protein), `GGH` (gamma-glutamyl hydrolase, folate metabolism), and `ADAMTS10` (an extracellular-matrix protease). That functional spread is itself informative: unlike a single dominant, narrowly-themed signature (which would suggest one confound driving most of the result), this list looks more consistent with a real, multi-pathway biological difference between favorable and anaplastic histology — though confirming *why* any specific gene differs would need follow-up beyond this one expression comparison. We carry this candidate list forward into Module 3 exactly as it stands.
+**Interpretation, stated plainly.** The top-ranked genes above span several different functional categories rather than one narrow theme — for example `SOX15` (a SRY-box transcription factor involved in development), `ME1` (malic enzyme, a metabolic/lipogenesis gene), `CIRBP` (a cold/stress-inducible RNA-binding protein), `GGH` (gamma-glutamyl hydrolase, folate metabolism), and `ADAMTS10` (an extracellular-matrix protease). That functional spread is itself informative: unlike a single dominant, narrowly-themed signature (which would suggest one confound driving most of the result), this list looks more consistent with a real, multi-pathway biological difference between favorable and anaplastic histology — though confirming *why* any specific gene differs would need follow-up beyond this one expression comparison.
+</div>
+
+## Adding a Real Negative Control: Tumor vs. Normal Kidney
+
+Favorable-vs-Unfavorable is a **tumor-vs-tumor** comparison — it never asks what either subtype looks like relative to normal tissue. TARGET-WT also includes a small number of genuinely matched **normal kidney** samples from the same consortium, which lets us ask that more fundamental question directly: how does each histology subtype differ from non-cancerous tissue?
+
+```{r load-controls, echo=TRUE}
+# Real matched-normal ("Solid Tissue Normal") RNA-seq samples, assembled the
+# same way as the tumor matrix (see data-prep/build_target_wt_data.R).
+control_counts_raw <- read_csv(
+  "data/TARGET_WT_control_gene_expression_tpm.csv",
+  show_col_types = FALSE
+) %>%
+  rename(gene_symbol = gene_name)
+
+control_clinical <- read_csv("data/TARGET_WT_control_clinical_raw.csv", show_col_types = FALSE)
+
+cat("Control samples:", ncol(control_counts_raw) - 1, "\n")
+cat("Control matrix genes:", nrow(control_counts_raw), "\n")
+cat("Gene set identical to the tumor matrix:",
+    setequal(control_counts_raw$gene_symbol, counts_raw$gene_symbol), "\n")
+```
+
+<div class="alert-info">
+**Only 6 real normal samples exist for this entire project** (TARGET-WT has 652 registered cases in total, but only 6 open-access, matched-normal RNA-seq files) — and all 6 happen to come from **Favorable**-histology patients; none exist for Unfavorable. This is exactly why Module 2's main comparison (above) is tumor-vs-tumor rather than each subtype vs. its own control: there is no "Unfavorable-vs-its-own-control" comparison to run. What follows instead compares **each tumor subtype against this same shared pool of 6 normals** — a real but small, intentionally-labeled-as-small reference group.
+</div>
+
+```{r check-id-overlap, echo=TRUE}
+# A real metadata subtlety worth seeing directly: all 6 normal-tissue donors
+# ALSO appear among the 82 Favorable tumor samples already loaded above --
+# same patient, two different biological samples (tumor + matched normal).
+# case_submitter_id alone can't distinguish them, so the normal samples are
+# tracked by their own sample_submitter_id (e.g. "...-11A") instead, and the
+# two groups are combined explicitly in code below rather than via a join on
+# case_submitter_id, which would silently fan out for these 6 shared patients.
+overlap_cases <- intersect(control_clinical$case_submitter_id, sample_metadata$case_submitter_id)
+cat("Normal-tissue donors who also have a tumor sample in this dataset:",
+    length(overlap_cases), "/", nrow(control_clinical), "\n")
+```
+
+```{r prep-de-vs-control, echo=TRUE}
+fav_ids   <- sample_metadata %>% filter(histologic_subtype == "Favorable")   %>% pull(case_submitter_id)
+unfav_ids <- sample_metadata %>% filter(histologic_subtype == "Unfavorable") %>% pull(case_submitter_id)
+
+control_long <- control_counts_raw %>%
+  pivot_longer(-gene_symbol, names_to = "sample_submitter_id", values_to = "tpm") %>%
+  mutate(group = "Control")
+
+# The same nested-t-test pipeline as above is needed twice (once per tumor
+# subtype vs. the same control pool) -- a genuinely repeated, multi-step
+# procedure, so it is wrapped in one function rather than duplicating the
+# whole block, per the "no custom functions unless the logic is repeated and
+# has no shorter tidyverse equivalent" rule.
+run_de_vs_control <- function(tumor_label, tumor_ids) {
+  tumor_long <- counts_raw %>%
+    select(gene_symbol, all_of(tumor_ids)) %>%
+    pivot_longer(-gene_symbol, names_to = "sample_submitter_id", values_to = "tpm") %>%
+    mutate(group = tumor_label)
+
+  # Factor levels are set explicitly (tumor first, Control second) so
+  # t.test()'s estimate1/estimate2 always mean "tumor" / "control" --
+  # alphabetical default ordering would otherwise flip this per comparison
+  # ("Control" < "Favorable" but "Control" < "Unfavorable" too).
+  combined <- bind_rows(tumor_long, control_long) %>%
+    mutate(
+      log2_tpm = log2(tpm + 1),
+      group = factor(group, levels = c(tumor_label, "Control"))
+    )
+
+  genes_keep_vc <- combined %>%
+    group_by(gene_symbol) %>%
+    summarise(mean_tpm = mean(tpm), .groups = "drop") %>%
+    filter(mean_tpm >= 1) %>%
+    pull(gene_symbol)
+
+  de_vc <- combined %>%
+    filter(gene_symbol %in% genes_keep_vc) %>%
+    select(gene_symbol, sample_submitter_id, group, log2_tpm) %>%
+    group_by(gene_symbol) %>%
+    nest() %>%
+    mutate(test_result = map(data, possibly(~ t.test(log2_tpm ~ group, data = .x), otherwise = NULL))) %>%
+    filter(!map_lgl(test_result, is.null)) %>%
+    mutate(tidy_result = map(test_result, tidy)) %>%
+    unnest(tidy_result) %>%
+    ungroup() %>%
+    rename(mean_log2_tumor = estimate1, mean_log2_control = estimate2) %>%
+    mutate(
+      log2FC = mean_log2_tumor - mean_log2_control,
+      p_adj  = p.adjust(p.value, method = "BH")
+    ) %>%
+    select(gene_symbol, mean_log2_tumor, mean_log2_control, log2FC, statistic, p.value, p_adj) %>%
+    arrange(p_adj)
+
+  list(genes_before = n_distinct(combined$gene_symbol), genes_after = length(genes_keep_vc), results = de_vc)
+}
+
+de_favorable_vs_control   <- run_de_vs_control("Favorable", fav_ids)
+de_unfavorable_vs_control <- run_de_vs_control("Unfavorable", unfav_ids)
+```
+
+```{r verify-de-vs-control, echo=TRUE}
+cat("Favorable (n=", length(fav_ids), ") vs Control (n=6) -- genes kept (mean_tpm>=1):",
+    de_favorable_vs_control$genes_after, "/", de_favorable_vs_control$genes_before, "\n")
+cat("  significant (p_adj<0.05):", sum(de_favorable_vs_control$results$p_adj < 0.05),
+    " | significant & |log2FC|>1:",
+    sum(de_favorable_vs_control$results$p_adj < 0.05 & abs(de_favorable_vs_control$results$log2FC) > 1), "\n\n")
+
+cat("Unfavorable (n=", length(unfav_ids), ") vs Control (n=6) -- genes kept (mean_tpm>=1):",
+    de_unfavorable_vs_control$genes_after, "/", de_unfavorable_vs_control$genes_before, "\n")
+cat("  significant (p_adj<0.05):", sum(de_unfavorable_vs_control$results$p_adj < 0.05),
+    " | significant & |log2FC|>1:",
+    sum(de_unfavorable_vs_control$results$p_adj < 0.05 & abs(de_unfavorable_vs_control$results$log2FC) > 1), "\n")
+```
+
+<div class="alert-info">
+**A much larger signal here — and that is expected, not a red flag.** Tumor-vs-*normal* comparisons routinely show far more genes changed than tumor-vs-tumor comparisons, because tumor tissue differs from normal tissue in dozens of basic ways at once (proliferation rate, immune infiltrate, blood supply, cell-type composition) — the opposite of a confound to worry about, since that *is* the biology being measured. What matters here is whether the top genes make biological sense.
+</div>
+
+```{r top10-vs-control-tables}
+kable(de_favorable_vs_control$results %>% slice_head(n = 10) %>% mutate(across(where(is.numeric), ~ signif(.x, 4))),
+      caption = "Top 10 genes, Favorable tumor vs normal kidney.")
+kable(de_unfavorable_vs_control$results %>% slice_head(n = 10) %>% mutate(across(where(is.numeric), ~ signif(.x, 4))),
+      caption = "Top 10 genes, Unfavorable tumor vs normal kidney.")
+```
+
+<div class="alert-info">
+**Biological sanity check.** Both lists are topped by `SIX1`, `SIX2`, and `EYA1` — three transcription factors that define the embryonic nephron progenitor program and are switched off in mature kidney, but are a textbook hallmark of Wilms tumor, which arises from retained embryonic kidney (blastemal) tissue. Seeing exactly these genes, unprompted, at the top of a real tumor-vs-normal comparison is a strong positive sanity check that this pipeline is measuring real biology.
+</div>
+
+```{r export-de-vs-control, echo=TRUE}
+write_csv(de_favorable_vs_control$results, "results/differential_expression_favorable_vs_control.csv")
+write_csv(de_unfavorable_vs_control$results, "results/differential_expression_unfavorable_vs_control.csv")
+
+cat("results/differential_expression_favorable_vs_control.csv written with",
+    nrow(read_csv("results/differential_expression_favorable_vs_control.csv", show_col_types = FALSE)), "rows.\n")
+cat("results/differential_expression_unfavorable_vs_control.csv written with",
+    nrow(read_csv("results/differential_expression_unfavorable_vs_control.csv", show_col_types = FALSE)), "rows.\n")
+```
+
+<div class="alert-info">
+**What carries forward to Module 3.** The Favorable-vs-Unfavorable candidate list above stands on its own as a tumor-subtype comparison. For the network-inference step in Module 3, though, we deliberately switch to **these two vs-control lists**: genes that distinguish a subtype from normal kidney are a more principled starting panel for asking "how is regulation wired differently in this subtype" than genes that merely differ between the two tumor subtypes, which could just as easily reflect a difference in cell-of-origin rather than regulatory rewiring.
 </div>
 
 # Part 4 — Light Hands-On: Guided Exploration
@@ -514,7 +655,7 @@ This entire analysis ran on **`r nrow(sample_metadata)` samples** (`r sum(sample
 
 - **A p-value is not a biomarker.** Effect size (`log2FC`) and biological plausibility matter as much as, or more than, the adjusted p-value alone — the moderate, functionally diverse signal seen in this module is a reassuring sign, but still not sufficient on its own.
 - **Pediatric rare disease and cancer studies are almost always underpowered by adult-oncology standards.** With `r sum(sample_metadata$histologic_subtype=="Unfavorable")` unfavorable-histology samples here, and adult cancer cohort studies routinely running into the hundreds or thousands, every statistical test in this module runs on a fraction of the data an equivalent adult study would have — which argues for prioritizing genes with **large, consistent effect sizes** over borderline p-values (exactly what Part 4's sliders let you feel directly), and for treating any single-cohort candidate list as hypothesis-generating rather than diagnostic.
-- **Any candidate list needs independent validation** — an orthogonal cohort, an orthogonal assay (e.g. qPCR, IHC), or both — before it can be called a biomarker in the clinical sense. Statistical significance in an expression comparison is also not the same question as mechanism: Module 3 takes the natural next step by asking how these candidate genes *regulate each other differently* between the two histology groups, using gene regulatory network inference.
+- **Any candidate list needs independent validation** — an orthogonal cohort, an orthogonal assay (e.g. qPCR, IHC), or both — before it can be called a biomarker in the clinical sense. Statistical significance in an expression comparison is also not the same question as mechanism: Module 3 takes the natural next step by asking how the genes distinguishing each subtype from normal kidney *regulate each other differently* between Favorable and Unfavorable, using gene regulatory network inference.
 
 ---
 
@@ -527,14 +668,15 @@ This report covers the following analyses:
 | Part 1 — Presenting the dataset | Described TARGET-WT and its 124 samples/82 favorable/42 unfavorable histology groups, and situated it relative to TCGA (TARGET's adult-cancer counterpart on the same GDC portal). |
 | Part 2 — Bridge to Module 0 | Compared the real metadata fields available for TARGET-WT against the clinical schema built by hand in Module 0 — closer to that schema than a typical public dataset, though still missing collection date and machine-readable consent. |
 | Part 3 — Guided walkthrough | Filtered low-expressed genes, ran a Welch two-sample t-test per gene (Favorable vs Unfavorable histology) on log2-transformed TPM using `purrr`/`broom` with BH FDR correction, visualized the result as a volcano plot and a z-scored heatmap of the top 30 candidates, and noted the top genes span diverse functional categories rather than one narrow confound. |
+| Part 3 — Negative control | Loaded 6 real matched-normal RNA-seq samples, flagged the case/sample ID subtlety they introduce, and ran Favorable-vs-Control and Unfavorable-vs-Control differential expression — both topped by nephron progenitor genes (`SIX1`/`SIX2`/`EYA1`), a strong biological sanity check. |
 | Part 4 — Guided exploration | Built a `crosstalk`-linked slider/plot/table explorer over the top 300 candidates, letting fold-change and p-value thresholds be adjusted live to see how the candidate list changes. |
 | Part 5 — Closing pediatric lens | Used this analysis's own cohort size as an illustration of how rare anaplastic-histology pediatric cases are, and discussed statistical significance vs. biological relevance under that constraint. |
 
 ### Downloadable Outputs
 
-- **Tables**: the real-metadata, top-candidates, and live-filtered explorer tables all include CSV / Excel (/ PDF where applicable) download buttons.
+- **Tables**: the real-metadata, top-candidates, vs-control, and live-filtered explorer tables all include CSV / Excel (/ PDF where applicable) download buttons.
 - **Plots**: the volcano plot and heatmap include a PNG download button via the plotly toolbar; the Part 4 explorer plot is interactively filterable by the sliders above it.
-- **Files**: `results/differential_expression_results.csv` (full differential expression results for all tested genes).
+- **Files**: `results/differential_expression_results.csv` (Favorable vs Unfavorable), `results/differential_expression_favorable_vs_control.csv`, `results/differential_expression_unfavorable_vs_control.csv`.
 
 <div class="alert-info">
 **Facilitator note.** Suggested break before Module 3: **10 minutes.**

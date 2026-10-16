@@ -1,11 +1,16 @@
-regulatoryGene,out_degree,histology
-BCL6B,12,Favorable
-DIPK2B,11,Favorable
-NCBP3,11,Favorable
-PDGFB,11,Favorable
-NOTCH4,10,Favorable
-DIPK2B,13,Unfavorable
-ARHGEF15,11,Unfavorable
-PCDH12,10,Unfavorable
-BCL6B,9,Unfavorable
-SMYD4,9,Unfavorable
+regulatoryGene,out_degree,group
+NCAPH,15,Favorable
+POLQ,12,Favorable
+HASPIN,10,Favorable
+TICRR,10,Favorable
+SCNN1A,7,Favorable
+ASPM,9,Unfavorable
+POLQ,9,Unfavorable
+EYA1,8,Unfavorable
+NCAPH,8,Unfavorable
+KIF14,7,Unfavorable
+CHRND,11,Control (n=6)
+RAMP3,11,Control (n=6)
+SPINK8,11,Control (n=6)
+CHRNA5,9,Control (n=6)
+INA,9,Control (n=6)
