@@ -483,12 +483,12 @@ cat("Mouse-style symbol 'Tp53' present:", has_mouse_style, "\n")
 ```
 
 <div class="alert-info">
-**Verification note.** The gene symbol capitalisation confirms **human (HGNC) nomenclature** — expected, but checked rather than assumed. Values here are continuous (not integer), consistent with **TPM**: each gene's read count already scaled by gene length and by the sample's total library size, which is exactly why no additional per-sample size-factor normalization is needed before comparing samples — a log-transform (used throughout this tutorial) is still applied before any statistical test, but the heavier cross-sample normalization step the GSE303967 dataset needed in earlier runs of this tutorial is already done for us here.
+**Verification note.** The gene symbol capitalisation confirms **human (HGNC) nomenclature** — expected, but checked rather than assumed. Values here are continuous (not integer), consistent with **TPM**: each gene's read count already scaled by gene length and by the sample's total library size, which is exactly why no additional per-sample size-factor normalization is needed before comparing samples — a log-transform (used throughout this tutorial) is still applied before any statistical test, but that is the only normalization step needed here.
 </div>
 
 # Joining the Expression Matrix to a Real Clinical Sheet
 
-Column headers in the expression matrix are **case identifiers**, e.g. `TARGET-50-PAKGMU` — not group labels like the toy `NNK16`/`WT19` convention from an earlier version of this tutorial. The structure is still worth parsing explicitly rather than assumed: `TARGET` (the program), `50` (the disease code assigned to Wilms tumor within TARGET), then a unique case suffix.
+Column headers in the expression matrix are real **case identifiers**, e.g. `TARGET-50-PAKGMU`, and the structure is worth parsing explicitly rather than assumed: `TARGET` (the program), `50` (the disease code assigned to Wilms tumor within TARGET), then a unique case suffix.
 
 ```{r parse-barcode, echo=TRUE}
 # Parse the real TARGET barcode structure from the expression matrix's
@@ -517,7 +517,7 @@ datatable(
   extensions = "Buttons",
   options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 10),
   rownames = FALSE,
-  caption = "The real clinical/demographic fields GDC ships for TARGET-WT: notably richer than GSE303967's column-name-only metadata."
+  caption = "The real clinical/demographic fields GDC ships for TARGET-WT."
 )
 ```
 
