@@ -4,5 +4,5 @@ COPY --chown=${NB_USER} . ${HOME}
 USER ${NB_USER}
 
 RUN R -e "options(repos = list(CRAN = 'https://cloud.r-project.org')); \
-          install.packages(c('tidyverse', 'broom', 'plotly', 'DT', 'crosstalk', 'igraph', 'visNetwork', 'BiocManager', 'knitr', 'scales', 'rmarkdown')); \
+          install.packages(c('tidyverse', 'broom', 'plotly', 'DT', 'crosstalk', 'igraph', 'visNetwork', 'BiocManager', 'knitr', 'scales', 'rmarkdown', 'pheatmap')); \
           BiocManager::install('GENIE3', update = FALSE, ask = FALSE)"

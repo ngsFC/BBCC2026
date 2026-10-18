@@ -491,10 +491,8 @@ control_long <- control_counts_raw %>%
   mutate(group = "Control")
 
 # The same nested-t-test pipeline as above is needed twice (once per tumor
-# subtype vs. the same control pool) -- a genuinely repeated, multi-step
-# procedure, so it is wrapped in one function rather than duplicating the
-# whole block, per the "no custom functions unless the logic is repeated and
-# has no shorter tidyverse equivalent" rule.
+# subtype vs. the same control pool), so it is wrapped in one function
+# rather than duplicating the whole block.
 run_de_vs_control <- function(tumor_label, tumor_ids) {
   tumor_long <- counts_raw %>%
     select(gene_symbol, all_of(tumor_ids)) %>%

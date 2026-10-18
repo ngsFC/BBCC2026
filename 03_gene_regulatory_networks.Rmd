@@ -233,11 +233,13 @@ kable(toy_edges, caption = "Top 8 inferred edges in the toy example, ranked by G
 ```{r plot-toy-network, fig.height=5}
 toy_graph <- graph_from_data_frame(toy_edges %>% select(regulatoryGene, targetGene, weight), directed = TRUE)
 
+set.seed(1)  # same node layout on every knit
 visIgraph(toy_graph, idToLabel = TRUE) %>%
   visNodes(color = list(background = "#2980b9", border = "#1a5276", highlight = "#e74c3c")) %>%
   visEdges(arrows = "to", color = list(color = "#8e44ad", opacity = 0.6)) %>%
   visOptions(highlightNearest = TRUE) %>%
-  visPhysics(stabilization = FALSE)
+  visPhysics(stabilization = FALSE) %>%
+  visLayout(randomSeed = 1)
 ```
 
 <div class="alert-info">
@@ -328,8 +330,7 @@ rownames(matrix_control) <- panel_wide_control$gene_symbol
 ```{r run-genie3, echo=TRUE}
 # GENIE3 uses random forests internally, so a fixed seed is required for a
 # reproducible knit -- without it, re-running this chunk would give slightly
-# different edge weights every time, breaking the "numbers you can trust"
-# standard used throughout this tutorial.
+# different edge weights every time.
 set.seed(20261013)
 weights_favorable <- GENIE3(matrix_favorable, nCores = 1, verbose = FALSE)
 
@@ -393,6 +394,7 @@ datatable(
 ```
 
 ```{r plot-network-favorable, fig.height=7}
+set.seed(1)  # same node layout on every knit
 visIgraph(graph_favorable, idToLabel = TRUE) %>%
   visNodes(color = list(background = "#2980b9", border = "#1a5276", highlight = "#e74c3c")) %>%
   visEdges(arrows = "to", color = list(color = "#2980b9", opacity = 0.4)) %>%
@@ -402,6 +404,7 @@ visIgraph(graph_favorable, idToLabel = TRUE) %>%
 ```
 
 ```{r plot-network-unfavorable, fig.height=7}
+set.seed(1)  # same node layout on every knit
 visIgraph(graph_unfavorable, idToLabel = TRUE) %>%
   visNodes(color = list(background = "#e74c3c", border = "#a93226", highlight = "#2980b9")) %>%
   visEdges(arrows = "to", color = list(color = "#e74c3c", opacity = 0.4)) %>%
@@ -421,6 +424,7 @@ This third network is built on only 6 samples. Unlike Favorable (82) or Unfavora
 </div>
 
 ```{r plot-network-control, fig.height=7}
+set.seed(1)  # same node layout on every knit
 visIgraph(graph_control, idToLabel = TRUE) %>%
   visNodes(color = list(background = "#95a5a6", border = "#707b7c", highlight = "#f39c12")) %>%
   visEdges(arrows = "to", color = list(color = "#95a5a6", opacity = 0.4)) %>%

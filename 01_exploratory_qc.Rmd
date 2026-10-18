@@ -170,6 +170,7 @@ library(plotly)
 library(DT)         
 library(knitr)      
 library(scales)     
+library(pheatmap)
 ```
 
 # From Module 0
@@ -315,44 +316,40 @@ As a second, complementary view of sample structure, we compute pairwise Pearson
 ```{r correlation-matrix, echo=TRUE}
 # Compute the full sample-by-sample correlation matrix.
 sample_cor_matrix <- cor(expr_matrix, method = "pearson")
-
-# Order samples by histology so block structure (if present) is visually apparent.
-sample_order <- sample_metadata %>% arrange(histologic_subtype, case_submitter_id) %>% pull(case_submitter_id)
-sample_cor_matrix <- sample_cor_matrix[sample_order, sample_order]
-
-cor_long <- as_tibble(sample_cor_matrix, rownames = "sample_x") %>%
-  pivot_longer(-sample_x, names_to = "sample_y", values_to = "correlation") %>%
-  mutate(
-    sample_x = factor(sample_x, levels = sample_order),
-    sample_y = factor(sample_y, levels = sample_order)
-  )
 ```
 
-The heatmap below is drawn as a static image: with 124 samples it has 15,376 cells, too many for a light interactive plot. The dashed lines separate Favorable (bottom-left block) from Unfavorable (top-right block).
+In the heatmap below, samples are **clustered** (the tree on top): samples with similar expression profiles are placed next to each other, so groups of similar samples show up as bright blocks and outliers as dark stripes. The colored bars show each sample's histology. The diagonal (each sample with itself, always 1) is left blank.
 
 ```{r plot-correlation-heatmap, fig.height=7, fig.width=8}
-n_favorable <- sum(sample_metadata$histologic_subtype == "Favorable")
+histology_annotation <- data.frame(
+  Histology = sample_metadata$histologic_subtype,
+  row.names = sample_metadata$case_submitter_id
+)
+cor_distance <- as.dist(1 - sample_cor_matrix)
 
-cor_long %>%
-  ggplot(aes(x = sample_x, y = sample_y, fill = correlation)) +
-  geom_raster() +
-  geom_vline(xintercept = n_favorable + 0.5, linetype = "dashed") +
-  geom_hline(yintercept = n_favorable + 0.5, linetype = "dashed") +
-  scale_fill_gradient2(low = "#e74c3c", mid = "white", high = "#2980b9", midpoint = 0.9) +
-  coord_equal() +
-  labs(x = NULL, y = NULL, fill = "Pearson r",
-       title = "Pairwise sample correlation (log2 scale)") +
-  theme_minimal(base_size = 11) +
-  theme(axis.text = element_blank(), panel.grid = element_blank())
+heatmap_matrix <- sample_cor_matrix
+diag(heatmap_matrix) <- NA
+
+pheatmap(
+  heatmap_matrix,
+  color = viridisLite::viridis(100), na_col = "white",
+  clustering_distance_rows = cor_distance, clustering_distance_cols = cor_distance,
+  clustering_method = "average",
+  annotation_col = histology_annotation, annotation_row = histology_annotation,
+  annotation_colors = list(Histology = c(Favorable = "#2980b9", Unfavorable = "#e74c3c")),
+  annotation_names_row = FALSE, annotation_names_col = FALSE,
+  show_rownames = FALSE, show_colnames = FALSE, treeheight_row = 0, border_color = NA,
+  main = "Sample-sample correlation (Pearson, log2 TPM), clustered"
+)
 ```
 
 To find individual outliers, it is easier to summarize each sample with one number: its **median correlation with all other samples**. A sample far below the rest of its group is the one worth flagging. Hover a point to see its ID.
 
 ```{r median-correlation, echo=TRUE}
-median_cor <- cor_long %>%
-  filter(sample_x != sample_y) %>%
-  group_by(case_submitter_id = as.character(sample_x)) %>%
-  summarise(median_correlation = median(correlation), .groups = "drop") %>%
+median_cor <- tibble(
+  case_submitter_id  = rownames(heatmap_matrix),
+  median_correlation = apply(heatmap_matrix, 1, median, na.rm = TRUE)
+) %>%
   left_join(sample_metadata, by = "case_submitter_id")
 ```
 
