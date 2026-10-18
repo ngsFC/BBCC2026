@@ -1,6 +1,6 @@
 ---
 title: "Module 2 — Expression Analysis and Candidate Biomarker Discovery"
-subtitle: "BBCC2026 Tutorial: From 17,616 Genes to a Ranked Candidate List"
+subtitle: "BBCC2026 Tutorial: From 19,938 Genes to Tumor-vs-Normal DEGs with limma"
 author:
   - "**Francesco Cecere** · *Senior Bioinformatic Researcher* · AORN Santobono-Pausilipon IRCCS"
   - "**Eva Luna Tarallo** · *Junior Bioinformatic Researcher* · AORN Santobono-Pausilipon IRCCS"
@@ -166,19 +166,19 @@ knitr::opts_chunk$set(
 
 ```{r libraries, include=FALSE}
 library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
-library(broom)       # tidy() converts base-R test objects into tidy tibbles
-library(plotly)      # interactive plots
+library(limma)       # linear models + empirical Bayes for differential expression
 library(DT)          # interactive downloadable tables
-library(crosstalk)   # links a plot and a table so a slider filters both (Part 4)
 library(knitr)       # kable for simple inline tables
-library(scales)      # axis formatting
+library(pheatmap)    # clustered heatmaps
+library(ggrepel)     # non-overlapping gene labels on the volcano plots
+library(UpSetR)      # UpSet plot of shared / specific DEGs
 ```
 
 # From Module 1
 
-Module 1 confirmed that TPM sums, expression distributions, and PCA structure are reasonable enough to proceed, while flagging that histology is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module goes end-to-end: from expression values to a ranked list of **candidate biomarkers**, with an explicit stop along the way to reconnect to the metadata work from Module 0.
+Module 1 confirmed that TPM sums, PCA structure, and sample-sample correlations are reasonable enough to proceed, while flagging that histology is not the only source of variation in the data (PC1 typically explains well under half of total variance in this dataset — see Module 1). With QC complete, this module goes end-to-end: from expression values to lists of **differentially expressed genes (DEGs)** between each tumor subtype and normal kidney, with an explicit stop along the way to reconnect to the metadata work from Module 0.
 
-**Session plan (≈60 minutes):** presenting the dataset (5 min) → explicit bridge to Module 0 (5 min) → guided walkthrough, Favorable vs Unfavorable (20 min) → adding a real negative control, tumor vs normal (10 min) → light hands-on threshold exploration (10 min) → closing pediatric lens (5 min).
+**Session plan (≈60 minutes):** presenting the dataset (5 min) → explicit bridge to Module 0 (5 min) → preparing the dataset (10 min) → differential expression with limma (15 min) → volcano plots, PCA and heatmaps (15 min) → shared DEGs with an UpSet plot (5 min) → closing pediatric lens (5 min).
 
 # Part 1 — Presenting the Dataset
 
@@ -193,18 +193,14 @@ Every module so far has used the same real dataset: **TARGET-WT**, RNA-seq expre
 Module 0 built and debugged, by hand, a clinical metadata schema with fields like `patient_id`, `age_years`, `sex`, `diagnosis`, and `consent_status`, then joined the real TARGET-WT expression matrix to a real clinical sheet. Let's look at what metadata actually ships with this real dataset, side by side with that schema.
 
 ```{r load-data, echo=TRUE}
-# Reload the expression matrix and the verified sample metadata from Module 0.
-counts_raw <- read_csv(
+# Reload the tumor expression matrix (TPM) and the verified sample metadata from Module 0.
+tumor_tpm_raw <- read_csv(
   "data/TARGET_WT_gene_expression_tpm.csv",
   show_col_types = FALSE
 ) %>%
   rename(gene_symbol = gene_name)
 
 sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
-
-counts_long <- counts_raw %>%
-  pivot_longer(-gene_symbol, names_to = "case_submitter_id", values_to = "tpm") %>%
-  left_join(sample_metadata, by = "case_submitter_id")
 ```
 
 ```{r table-real-metadata}
@@ -234,226 +230,23 @@ kable(field_comparison, caption = "Same conceptual fields: TARGET-WT is far clos
 **The bridge, stated plainly.** `case_submitter_id` and `histologic_subtype` are literally the same *kind* of information as the `patient_id` and `diagnosis` fields built and debugged by hand in Module 0 — and here, age and sex carry over too, because TARGET is a dedicated, consent-governed pediatric consortium rather than a dataset assembled for a single narrow purpose. It still does **not** ship collection date or a machine-readable consent field via this API — real metadata is rarely complete even from a well-run program, which is exactly why every join is verified rather than trusted, as Module 0 just did.
 </div>
 
-# Part 3 — Guided Walkthrough of the Expression Analysis
+# Part 3 — Differential Expression: Each Tumor Subtype vs. Normal Kidney
 
-The rest of this module works through one core question, gene by gene: **"is this gene behaving abnormally compared to what we'd expect?"** Concretely, that means: raw counts → filtering → a statistical comparison between groups → visualization of the result. Each step below states what it does and why before showing the code.
+The rest of this module asks one question, gene by gene: **"is this gene expressed differently in the tumor than in normal kidney?"** We ask it twice, once for each histology subtype:
 
-## Filtering Low-Expressed Genes
+- **Favorable vs. Control**: `r sum(sample_metadata$histologic_subtype == "Favorable")` favorable-histology tumors against 6 normal kidney samples.
+- **Unfavorable vs. Control**: `r sum(sample_metadata$histologic_subtype == "Unfavorable")` unfavorable (anaplastic) tumors against the same 6 normal samples.
 
-Genes with very low or near-zero expression across all samples add statistical noise (unstable variance estimates) without adding biological information, and can even cause a per-gene t-test to fail outright when a group's values are constant. We apply the same mean-TPM filter used in Module 1 and report exactly how many genes are removed.
+The workflow is: prepare the dataset → fit a statistical model → visualize the results (volcano plots, heatmaps) → compare the two lists of differentially expressed genes (DEGs).
 
-```{r filter-genes, echo=TRUE}
-gene_mean_expr <- counts_long %>%
-  group_by(gene_symbol) %>%
-  summarise(mean_tpm = mean(tpm), .groups = "drop")
+## Step 1 — Preparing the Dataset
 
-n_genes_before <- nrow(gene_mean_expr)
-genes_to_keep  <- gene_mean_expr %>% filter(mean_tpm >= 1) %>% pull(gene_symbol)
-n_genes_after  <- length(genes_to_keep)
-
-counts_filtered <- counts_long %>%
-  filter(gene_symbol %in% genes_to_keep) %>%
-  mutate(log2_tpm = log2(tpm + 1))
-```
-
-```{r table-filter}
-datatable(
-  tibble(
-    step  = c("Genes before filtering", "Genes after filtering (mean TPM >= 1)", "Genes removed"),
-    genes = c(n_genes_before, n_genes_after, n_genes_before - n_genes_after)
-  ),
-  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
-  caption = "Effect of the low-expression filter."
-)
-```
-
-<div class="alert-info">
-**Design note.** Favorable and unfavorable histology are two different groups of patients, not two samples from the same patient — there is no pairing to exploit here, unlike a tumor-vs-adjacent-normal design. We use an **unpaired, two-sample Welch t-test**, the correct choice whenever the two groups being compared are different individuals rather than matched samples from the same individual.
-</div>
-
-## Per-Gene Differential Expression Testing
-
-For each of the `r n_genes_after` retained genes, we run a Welch two-sample t-test comparing log2(TPM + 1) between `Favorable` and `Unfavorable` histology, using `purrr::map` to apply the test gene-by-gene and `broom::tidy()` to collect the results into a single tidy table — no custom helper function is defined, only standard tidyverse verbs applied to base R's `t.test()`.
-
-<div class="alert-info">
-**Beginner note — what does `nest()` + `map()` actually do here?** `t.test()` only ever compares two groups at a time, and we have `r n_genes_after` genes to test — one t-test per gene, run automatically instead of copy-pasted `r n_genes_after` times. `nest()` splits the long table into one mini-table per gene, `map()` runs `t.test()` once on each of those mini-tables, and `tidy()` turns each test's result back into a tidy row. The pattern — **nest, map a function over each piece, tidy, unnest** — is one of the most useful in `tidyverse` for "do the same analysis once per group," and it comes up constantly beyond just t-tests.
-</div>
-
-```{r run-de-tests, echo=TRUE}
-# Nest the data by gene, run a Welch t-test per gene, and tidy the results.
-# possibly() guards against the rare gene where a group has zero variance,
-# which would otherwise make t.test() error and stop the whole pipeline.
-de_results_raw <- counts_filtered %>%
-  select(gene_symbol, case_submitter_id, histologic_subtype, log2_tpm) %>%
-  group_by(gene_symbol) %>%
-  nest() %>%
-  mutate(
-    test_result = map(data, possibly(~ t.test(log2_tpm ~ histologic_subtype, data = .x), otherwise = NULL))
-  )
-
-n_tests_failed <- sum(map_lgl(de_results_raw$test_result, is.null))
-
-de_results <- de_results_raw %>%
-  filter(!map_lgl(test_result, is.null)) %>%
-  mutate(tidy_result = map(test_result, tidy)) %>%
-  unnest(tidy_result) %>%
-  ungroup() %>%
-  # estimate1 = mean log2 TPM in "Favorable", estimate2 = mean in "Unfavorable"
-  # (t.test(formula, data) orders groups alphabetically: Favorable before Unfavorable).
-  rename(mean_log2_Favorable = estimate1, mean_log2_Unfavorable = estimate2) %>%
-  mutate(
-    log2FC = mean_log2_Favorable - mean_log2_Unfavorable,
-    p_adj  = p.adjust(p.value, method = "BH")
-  ) %>%
-  select(gene_symbol, mean_log2_Favorable, mean_log2_Unfavorable, log2FC, statistic, p.value, p_adj) %>%
-  arrange(p_adj)
-```
-
-```{r table-de-summary}
-datatable(
-  tibble(
-    category = c("Genes tested", "Genes where the test could not be run",
-                 "Significant (p_adj < 0.05)", "Significant (p_adj < 0.05) and |log2FC| > 1"),
-    genes    = c(nrow(de_results), n_tests_failed, sum(de_results$p_adj < 0.05),
-                 sum(de_results$p_adj < 0.05 & abs(de_results$log2FC) > 1))
-  ),
-  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
-  caption = "Favorable vs Unfavorable: how many genes pass each threshold."
-)
-```
-
-<div class="alert-info">
-**Signal size, checked rather than assumed.** The number of genes reaching `p_adj < 0.05` here is a moderate fraction of all genes tested — not the near-total-genome signal a dominant confounder (e.g. a difference in cell-type composition between groups) would typically produce. That is a reassuring, not a conclusive, sign: it still does not make any single gene a validated biomarker on its own. We inspect *what kind* of genes top the list directly below, not just how many are significant.
-</div>
-
-## Volcano Plot
-
-A volcano plot jointly displays effect size (log2 fold-change, x-axis) and statistical significance (−log10 adjusted p-value, y-axis), making it easy to spot genes that are both strongly and confidently changed — the genes most likely to be useful, reproducible biomarkers rather than statistically significant but practically negligible changes.
-
-```{r volcano-plot, echo=TRUE, fig.height=7}
-volcano_data <- de_results %>%
-  mutate(
-    neg_log10_padj = -log10(p_adj),
-    significance = case_when(
-      p_adj < 0.05 & abs(log2FC) > 1 ~ "Significant & |log2FC| > 1",
-      p_adj < 0.05                   ~ "Significant only",
-      TRUE                            ~ "Not significant"
-    )
-  )
-
-p_volcano <- volcano_data %>%
-  ggplot(aes(x = log2FC, y = neg_log10_padj, color = significance, text = gene_symbol)) +
-  geom_point(alpha = 0.5, size = 1.2) +
-  geom_vline(xintercept = c(-1, 1), linetype = "dashed", color = "grey40") +
-  geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "grey40") +
-  scale_color_manual(values = c(
-    "Significant & |log2FC| > 1" = "#e74c3c",
-    "Significant only"           = "#2980b9",
-    "Not significant"            = "grey70"
-  )) +
-  labs(
-    x = "log2 fold-change (Favorable vs Unfavorable)",
-    y = "-log10(adjusted p-value)",
-    title = "Volcano plot of per-gene differential expression",
-    color = NULL
-  ) +
-  theme_minimal(base_size = 11)
-
-ggplotly(p_volcano, tooltip = c("text", "x", "y"))
-```
-
-## Visualizing the Result: A Heatmap of Top Candidates
-
-A volcano plot summarizes one number per gene (its overall group difference); a heatmap shows the underlying sample-by-sample pattern behind that number, which is often the fastest way to spot whether a "significant" gene is a clean, consistent group difference or driven by just one or two outlier samples. We plot the top 30 candidates by adjusted p-value, with each gene's expression converted to a **z-score** (its values expressed as standard deviations from that gene's own mean) so that genes measured on very different expression scales can be compared side by side on one color axis.
-
-```{r heatmap-top-genes, echo=TRUE, fig.height=9}
-# Take the top 30 candidates by adjusted p-value for a readable heatmap.
-top_heatmap_genes <- de_results %>% slice_head(n = 30) %>% pull(gene_symbol)
-
-# Z-score each gene's log2 TPM across samples: this puts every gene on a
-# comparable scale (mean 0, SD 1) regardless of its absolute expression level.
-heatmap_data <- counts_filtered %>%
-  filter(gene_symbol %in% top_heatmap_genes) %>%
-  select(gene_symbol, case_submitter_id, histologic_subtype, log2_tpm) %>%
-  group_by(gene_symbol) %>%
-  mutate(z_score = as.numeric(scale(log2_tpm))) %>%
-  ungroup()
-
-# Order samples by histology (so the two groups appear as visually separate
-# blocks) and genes by their rank in de_results (most significant at top).
-sample_order <- sample_metadata %>% arrange(histologic_subtype, case_submitter_id) %>% pull(case_submitter_id)
-
-heatmap_data <- heatmap_data %>%
-  mutate(
-    case_submitter_id = factor(case_submitter_id, levels = sample_order),
-    gene_symbol        = factor(gene_symbol, levels = rev(top_heatmap_genes))
-  )
-```
-
-```{r plot-heatmap, fig.height=9}
-p_heatmap <- heatmap_data %>%
-  ggplot(aes(x = case_submitter_id, y = gene_symbol, fill = z_score, text = paste0(gene_symbol, " / ", case_submitter_id, " (", histologic_subtype, ")"))) +
-  geom_tile() +
-  scale_fill_gradient2(low = "#2980b9", mid = "white", high = "#e74c3c", midpoint = 0) +
-  labs(x = NULL, y = NULL, fill = "z-score",
-       title = "Top 30 candidate biomarkers across all samples (log2 counts, per-gene z-scored)") +
-  theme_minimal(base_size = 8) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, size = 6),
-        axis.text.y = element_text(size = 7))
-
-ggplotly(p_heatmap, tooltip = "text")
-```
-
-<div class="alert-info">
-**What to look for.** If the top candidates are genuine, consistent group markers, the heatmap should show two clearly separated blocks of color, one per group, across nearly every gene shown. Patchy patterns — a gene that looks "significant" but shows the expected color in only a handful of samples per group — are a visual early-warning sign of a result driven by outliers rather than a consistent group effect, and are worth double-checking against Module 1's PCA and correlation results before trusting them.
-</div>
-
-## Top Candidate Biomarkers
-
-The table below lists the top 200 genes ranked by adjusted p-value (out of `r sum(de_results$p_adj < 0.05)` significant at `p_adj < 0.05`). The full result table for all `r nrow(de_results)` tested genes is exported to CSV below the table for anyone who needs the complete list.
-
-```{r table-top-candidates}
-top_candidates <- de_results %>% slice_head(n = 200)
-
-datatable(
-  top_candidates %>%
-    mutate(across(where(is.numeric), ~ signif(.x, 4))),
-  extensions = "Buttons",
-  options = list(dom = "Bfrtip", buttons = c("csv", "excel", "pdf"), pageLength = 15),
-  rownames = FALSE,
-  caption = "Top 200 candidate biomarkers ranked by adjusted p-value."
-)
-```
-
-```{r export-de-results, echo=TRUE}
-# Persist the full differential expression table for use in Module 3 and for
-# anyone who wants the complete, unfiltered result set.
-dir.create("results", showWarnings = FALSE)
-write_csv(de_results, "results/differential_expression_results.csv")
-```
-
-## A Quick Biological Sanity Check
-
-Before treating any of the above as a real finding, the simplest and most informative check is to just read the names of the top genes.
-
-```{r top15-table}
-top15 <- de_results %>% slice_head(n = 15) %>%
-  mutate(across(where(is.numeric), ~ signif(.x, 4)))
-kable(top15, caption = "Top 15 candidates by adjusted p-value.")
-```
-
-<div class="alert-info">
-**Interpretation, stated plainly.** The top-ranked genes above span several different functional categories rather than one narrow theme — for example `SOX15` (a SRY-box transcription factor involved in development), `ME1` (malic enzyme, a metabolic/lipogenesis gene), `CIRBP` (a cold/stress-inducible RNA-binding protein), `GGH` (gamma-glutamyl hydrolase, folate metabolism), and `ADAMTS10` (an extracellular-matrix protease). That functional spread is itself informative: unlike a single dominant, narrowly-themed signature (which would suggest one confound driving most of the result), this list looks more consistent with a real, multi-pathway biological difference between favorable and anaplastic histology — though confirming *why* any specific gene differs would need follow-up beyond this one expression comparison.
-</div>
-
-## Adding a Real Negative Control: Tumor vs. Normal Kidney
-
-Favorable-vs-Unfavorable is a **tumor-vs-tumor** comparison — it never asks what either subtype looks like relative to normal tissue. TARGET-WT also includes a small number of genuinely matched **normal kidney** samples from the same consortium, which lets us ask that more fundamental question directly: how does each histology subtype differ from non-cancerous tissue?
+TARGET-WT also includes a small number of genuinely matched **normal kidney** samples ("Solid Tissue Normal") from the same consortium. These are our **control** group.
 
 ```{r load-controls, echo=TRUE}
-# Real matched-normal ("Solid Tissue Normal") RNA-seq samples, assembled the
-# same way as the tumor matrix (see data-prep/build_target_wt_data.R).
-control_counts_raw <- read_csv(
+# Real matched-normal RNA-seq samples, assembled the same way as the tumor
+# matrix (see data-prep/build_target_wt_data.R).
+control_tpm_raw <- read_csv(
   "data/TARGET_WT_control_gene_expression_tpm.csv",
   show_col_types = FALSE
 ) %>%
@@ -463,17 +256,14 @@ control_clinical <- read_csv("data/TARGET_WT_control_clinical_raw.csv", show_col
 ```
 
 <div class="alert-info">
-**Only 6 real normal samples exist for this entire project** (TARGET-WT has 652 registered cases in total, but only 6 open-access, matched-normal RNA-seq files) — and all 6 happen to come from **Favorable**-histology patients; none exist for Unfavorable. This is exactly why Module 2's main comparison (above) is tumor-vs-tumor rather than each subtype vs. its own control: there is no "Unfavorable-vs-its-own-control" comparison to run. What follows instead compares **each tumor subtype against this same shared pool of 6 normals** — a real but small, intentionally-labeled-as-small reference group.
+**Only 6 real normal samples exist for this entire project** (TARGET-WT has 652 registered cases in total, but only 6 open-access, matched-normal RNA-seq files), and all 6 come from **Favorable**-histology patients. Both comparisons therefore use **the same shared pool of 6 normals** as reference: a real but small control group.
 </div>
 
 ```{r check-id-overlap, echo=TRUE}
-# A real metadata subtlety worth seeing directly: all 6 normal-tissue donors
-# ALSO appear among the 82 Favorable tumor samples already loaded above --
+# All 6 normal-tissue donors ALSO appear among the Favorable tumor samples:
 # same patient, two different biological samples (tumor + matched normal).
 # case_submitter_id alone can't distinguish them, so the normal samples are
-# tracked by their own sample_submitter_id (e.g. "...-11A") instead, and the
-# two groups are combined explicitly in code below rather than via a join on
-# case_submitter_id, which would silently fan out for these 6 shared patients.
+# tracked by their own sample_submitter_id (e.g. "...-11A").
 datatable(
   control_clinical %>%
     mutate(also_has_tumor_sample = case_submitter_id %in% sample_metadata$case_submitter_id),
@@ -482,164 +272,413 @@ datatable(
 )
 ```
 
-```{r prep-de-vs-control, echo=TRUE}
-fav_ids   <- sample_metadata %>% filter(histologic_subtype == "Favorable")   %>% pull(case_submitter_id)
-unfav_ids <- sample_metadata %>% filter(histologic_subtype == "Unfavorable") %>% pull(case_submitter_id)
+Next we put tumors and controls into **one expression matrix** (genes × samples) and build a matching **sample sheet** that says which group each column belongs to. The order of the columns in the matrix and the order of the rows in the sample sheet must be identical: the model reads the group of column *i* from row *i* of the sample sheet.
 
-control_long <- control_counts_raw %>%
-  pivot_longer(-gene_symbol, names_to = "sample_submitter_id", values_to = "tpm") %>%
-  mutate(group = "Control")
+```{r build-de-dataset, echo=TRUE}
+# Same 19,938 genes, in the same order, in both files.
+stopifnot(identical(tumor_tpm_raw$gene_symbol, control_tpm_raw$gene_symbol))
 
-# The same nested-t-test pipeline as above is needed twice (once per tumor
-# subtype vs. the same control pool), so it is wrapped in one function
-# rather than duplicating the whole block.
-run_de_vs_control <- function(tumor_label, tumor_ids) {
-  tumor_long <- counts_raw %>%
-    select(gene_symbol, all_of(tumor_ids)) %>%
-    pivot_longer(-gene_symbol, names_to = "sample_submitter_id", values_to = "tpm") %>%
-    mutate(group = tumor_label)
+tpm_matrix <- as.matrix(bind_cols(tumor_tpm_raw[, -1], control_tpm_raw[, -1]))
+rownames(tpm_matrix) <- tumor_tpm_raw$gene_symbol
 
-  # Factor levels are set explicitly (tumor first, Control second) so
-  # t.test()'s estimate1/estimate2 always mean "tumor" / "control" --
-  # alphabetical default ordering would otherwise flip this per comparison
-  # ("Control" < "Favorable" but "Control" < "Unfavorable" too).
-  combined <- bind_rows(tumor_long, control_long) %>%
-    mutate(
-      log2_tpm = log2(tpm + 1),
-      group = factor(group, levels = c(tumor_label, "Control"))
-    )
+# One row per column of tpm_matrix, in the same order.
+de_samples <- tibble(sample_id = colnames(tpm_matrix)) %>%
+  left_join(sample_metadata %>% select(sample_id = case_submitter_id, histologic_subtype), by = "sample_id") %>%
+  mutate(group = factor(replace_na(histologic_subtype, "Control"),
+                        levels = c("Control", "Favorable", "Unfavorable"))) %>%
+  select(sample_id, group)
 
-  genes_keep_vc <- combined %>%
-    group_by(gene_symbol) %>%
-    summarise(mean_tpm = mean(tpm), .groups = "drop") %>%
-    filter(mean_tpm >= 1) %>%
-    pull(gene_symbol)
+stopifnot(identical(de_samples$sample_id, colnames(tpm_matrix)))
 
-  de_vc <- combined %>%
-    filter(gene_symbol %in% genes_keep_vc) %>%
-    select(gene_symbol, sample_submitter_id, group, log2_tpm) %>%
-    group_by(gene_symbol) %>%
-    nest() %>%
-    mutate(test_result = map(data, possibly(~ t.test(log2_tpm ~ group, data = .x), otherwise = NULL))) %>%
-    filter(!map_lgl(test_result, is.null)) %>%
-    mutate(tidy_result = map(test_result, tidy)) %>%
-    unnest(tidy_result) %>%
-    ungroup() %>%
-    rename(mean_log2_tumor = estimate1, mean_log2_control = estimate2) %>%
-    mutate(
-      log2FC = mean_log2_tumor - mean_log2_control,
-      p_adj  = p.adjust(p.value, method = "BH")
-    ) %>%
-    select(gene_symbol, mean_log2_tumor, mean_log2_control, log2FC, statistic, p.value, p_adj) %>%
-    arrange(p_adj)
-
-  list(genes_before = n_distinct(combined$gene_symbol), genes_after = length(genes_keep_vc), results = de_vc)
-}
-
-de_favorable_vs_control   <- run_de_vs_control("Favorable", fav_ids)
-de_unfavorable_vs_control <- run_de_vs_control("Unfavorable", unfav_ids)
+n_control     <- sum(de_samples$group == "Control")
+n_favorable   <- sum(de_samples$group == "Favorable")
+n_unfavorable <- sum(de_samples$group == "Unfavorable")
 ```
 
-```{r table-de-vs-control}
+```{r table-de-samples}
+datatable(
+  count(de_samples, group, name = "samples"),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Samples per group in the combined dataset."
+)
+```
+
+### Filtering low-expressed genes
+
+Genes that are barely expressed carry almost no information but still count as tests, which makes the multiple-testing correction harsher for every other gene. We keep a gene only if it reaches **TPM ≥ 1 in at least `r n_control` samples**, the size of the smallest group: that way a gene expressed only in the controls (or only in a small group of tumors) is still kept.
+
+```{r filter-genes, echo=TRUE}
+keep_genes <- rowSums(tpm_matrix >= 1) >= n_control
+
+# log2(TPM + 1): the scale used for every test and plot below.
+log2_expr <- log2(tpm_matrix[keep_genes, ] + 1)
+```
+
+```{r table-filter}
 datatable(
   tibble(
-    comparison     = c("Favorable vs Control", "Unfavorable vs Control"),
-    tumor_samples  = c(length(fav_ids), length(unfav_ids)),
-    control_samples = ncol(control_counts_raw) - 1,
-    genes_tested   = c(de_favorable_vs_control$genes_after, de_unfavorable_vs_control$genes_after),
-    significant    = c(sum(de_favorable_vs_control$results$p_adj < 0.05),
-                       sum(de_unfavorable_vs_control$results$p_adj < 0.05)),
-    significant_and_fc = c(sum(de_favorable_vs_control$results$p_adj < 0.05 & abs(de_favorable_vs_control$results$log2FC) > 1),
-                           sum(de_unfavorable_vs_control$results$p_adj < 0.05 & abs(de_unfavorable_vs_control$results$log2FC) > 1))
+    step  = c("Genes before filtering", "Genes kept (TPM >= 1 in at least 6 samples)", "Genes removed"),
+    genes = c(nrow(tpm_matrix), sum(keep_genes), sum(!keep_genes))
   ),
   rownames = FALSE, options = list(dom = "t", ordering = FALSE),
-  caption = "Tumor vs normal kidney: genes tested and significant (p_adj < 0.05; significant_and_fc adds |log2FC| > 1)."
+  caption = "Effect of the low-expression filter."
 )
 ```
 
-<div class="alert-info">
-**A much larger signal here — and that is expected, not a red flag.** Tumor-vs-*normal* comparisons routinely show far more genes changed than tumor-vs-tumor comparisons, because tumor tissue differs from normal tissue in dozens of basic ways at once (proliferation rate, immune infiltrate, blood supply, cell-type composition) — the opposite of a confound to worry about, since that *is* the biology being measured. What matters here is whether the top genes make biological sense.
-</div>
+## Step 2 — Differential Expression with limma
 
-```{r top10-vs-control-tables}
-kable(de_favorable_vs_control$results %>% slice_head(n = 10) %>% mutate(across(where(is.numeric), ~ signif(.x, 4))),
-      caption = "Top 10 genes, Favorable tumor vs normal kidney.")
-kable(de_unfavorable_vs_control$results %>% slice_head(n = 10) %>% mutate(across(where(is.numeric), ~ signif(.x, 4))),
-      caption = "Top 10 genes, Unfavorable tumor vs normal kidney.")
-```
+We use **limma**, one of the most widely used packages for differential expression. It fits, for every gene, a linear model of its log2 expression as a function of the sample group, then tests the differences we ask for.
 
 <div class="alert-info">
-**Biological sanity check.** Both lists are topped by `SIX1`, `SIX2`, and `EYA1` — three transcription factors that define the embryonic nephron progenitor program and are switched off in mature kidney, but are a textbook hallmark of Wilms tumor, which arises from retained embryonic kidney (blastemal) tissue. Seeing exactly these genes, unprompted, at the top of a real tumor-vs-normal comparison is a strong positive sanity check that this pipeline is measuring real biology.
+**Why limma, and not DESeq2?** DESeq2 and edgeR model **raw read counts**: their statistics depend on the counting noise of reads, which is not recoverable from TPM. Our data are TPM, which are already normalized for sequencing depth and gene length. For values like these the standard choice is **limma on log2(TPM + 1)** with the `trend = TRUE` option ("limma-trend"), which accounts for the fact that low-expressed genes are noisier than highly expressed ones.
+
+**Why it helps with only 6 controls.** limma's *empirical Bayes* step (`eBayes`) borrows information across all genes: each gene's variance is pulled toward the typical variance of genes with similar expression. With small groups, a single gene's variance estimate is very unstable; this "shrinkage" makes the test much more reliable, which is exactly what a small pediatric control group needs.
 </div>
 
-```{r export-de-vs-control, echo=TRUE}
-write_csv(de_favorable_vs_control$results, "results/differential_expression_favorable_vs_control.csv")
-write_csv(de_unfavorable_vs_control$results, "results/differential_expression_unfavorable_vs_control.csv")
-```
+The model is set up in three steps:
 
-<div class="alert-info">
-**What carries forward to Module 3.** The Favorable-vs-Unfavorable candidate list above stands on its own as a tumor-subtype comparison. For the network-inference step in Module 3, though, we deliberately switch to **these two vs-control lists**: genes that distinguish a subtype from normal kidney are a more principled starting panel for asking "how is regulation wired differently in this subtype" than genes that merely differ between the two tumor subtypes, which could just as easily reflect a difference in cell-of-origin rather than regulatory rewiring.
-</div>
+1. **Design matrix**: one column per group (Control, Favorable, Unfavorable), so the model estimates the mean log2 expression of each group for every gene.
+2. **Contrasts**: the differences we want to test, `Favorable − Control` and `Unfavorable − Control`. Both are estimated from **one model fitted on all `r ncol(log2_expr)` samples**, so the 6 controls are used once and the variance estimate uses every sample.
+3. **eBayes**: computes moderated t-statistics and p-values; `topTable()` then adds the Benjamini-Hochberg adjusted p-value (`p_adj`), which corrects for testing thousands of genes at once.
 
-# Part 4 — Light Hands-On: Guided Exploration
+```{r run-limma, echo=TRUE}
+design <- model.matrix(~ 0 + group, data = de_samples)
+colnames(design) <- levels(de_samples$group)
 
-Every threshold used so far (`p_adj < 0.05`, `|log2FC| > 1`) was a choice, not a law of nature. The point of this section is **not** to teach new statistics — it is to build a feel for how moving those thresholds changes what counts as a "finding," using the two sliders below. They control a live-linked plot and table (built with the `crosstalk` package): drag either slider and both update instantly, entirely in your browser, with no code to re-run.
-
-For readability and file size, this explorer is restricted to the 300 genes already ranked most significant in `de_results` — sliding the thresholds below explores *which of these* survive stricter cutoffs, not the full `r nrow(de_results)`-gene universe.
-
-<div class="alert-info">
-**Try this, in order (≈5 min):** (1) leave both sliders at their default, and note roughly how many genes are shown; (2) drag the fold-change slider up until it reads "Minimum |log2 fold-change| = 2" and note how the point count on the plot drops; (3) put that slider back, and instead drag the p-value slider down to its minimum — compare which of the two moves removed more genes. There is no right answer; the point is to see the two thresholds behave differently.
-</div>
-
-```{r crosstalk-explorer, echo=TRUE}
-# SharedData links the plot and the table below: any filter applied via the
-# sliders is applied to both simultaneously, client-side, in the rendered HTML.
-explorer_data <- de_results %>%
-  slice_head(n = 300) %>%
-  mutate(neg_log10_padj = -log10(p_adj), abs_log2FC = abs(log2FC))
-
-shared_explorer <- SharedData$new(explorer_data, key = ~gene_symbol, group = "de_explorer")
-```
-
-```{r crosstalk-widget, fig.height=6}
-bscols(
-  widths = c(3, 9),
-  list(
-    filter_slider("fc_threshold", "Minimum |log2 fold-change|",
-                   shared_explorer, ~abs_log2FC, step = 0.1, width = "100%"),
-    filter_slider("padj_threshold", "Maximum adjusted p-value",
-                   shared_explorer, ~p_adj, step = 0.001, width = "100%")
-  ),
-  plot_ly(shared_explorer, x = ~log2FC, y = ~neg_log10_padj, type = "scatter", mode = "markers",
-          text = ~gene_symbol, hoverinfo = "text",
-          marker = list(size = 7, opacity = 0.6, color = "#2980b9")) %>%
-    layout(xaxis = list(title = "log2 fold-change (Favorable vs Unfavorable)"),
-           yaxis = list(title = "-log10(adjusted p-value)"),
-           title = "Drag the sliders on the left to filter this plot and the table below")
+contrast_matrix <- makeContrasts(
+  Favorable_vs_Control   = Favorable - Control,
+  Unfavorable_vs_Control = Unfavorable - Control,
+  levels = design
 )
+
+fit <- lmFit(log2_expr, design)
+fit <- contrasts.fit(fit, contrast_matrix)
+fit <- eBayes(fit, trend = TRUE, robust = TRUE)
 ```
 
-```{r crosstalk-table}
+```{r design-preview}
 datatable(
-  shared_explorer,
-  extensions = "Buttons",
-  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 8,
-                 columnDefs = list(list(visible = FALSE, targets = c(7, 8)))),
-  rownames = FALSE,
-  caption = "Candidate list filtered live by the sliders above."
+  as_tibble(design) %>% mutate(sample_id = de_samples$sample_id, .before = 1) %>%
+    slice(c(1:3, (n() - 2):n())),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "A few rows of the design matrix: 1 marks the group each sample belongs to."
+)
+```
+
+### Calling DEGs
+
+A gene is called a **DEG** when it is both statistically significant and changed by a meaningful amount:
+
+- **`p_adj < 0.05`**: less than 5% of the genes we call are expected to be false positives;
+- **`|log2FC| > 1`**: expression at least **doubled** (log2FC > 1, *up* in the tumor) or **halved** (log2FC < −1, *down* in the tumor) compared with normal kidney.
+
+```{r extract-results, echo=TRUE}
+padj_cutoff  <- 0.05
+log2fc_cutoff <- 1
+
+get_de_table <- function(contrast_name) {
+  topTable(fit, coef = contrast_name, number = Inf, sort.by = "P") %>%
+    as_tibble(rownames = "gene_symbol") %>%
+    transmute(
+      gene_symbol,
+      log2FC         = logFC,
+      mean_log2_expr = AveExpr,
+      t,
+      p.value        = P.Value,
+      p_adj          = adj.P.Val,
+      status = case_when(
+        p_adj < padj_cutoff & log2FC >  log2fc_cutoff ~ "Up",
+        p_adj < padj_cutoff & log2FC < -log2fc_cutoff ~ "Down",
+        TRUE                                          ~ "Not DEG"
+      )
+    )
+}
+
+de_favorable_vs_control   <- get_de_table("Favorable_vs_Control")
+de_unfavorable_vs_control <- get_de_table("Unfavorable_vs_Control")
+
+de_both <- bind_rows(
+  "Favorable vs Control"   = de_favorable_vs_control,
+  "Unfavorable vs Control" = de_unfavorable_vs_control,
+  .id = "comparison"
+)
+```
+
+```{r table-de-summary}
+datatable(
+  de_both %>%
+    count(comparison, status) %>%
+    pivot_wider(names_from = status, values_from = n, values_fill = 0) %>%
+    mutate(DEGs = Up + Down) %>%
+    select(comparison, Up, Down, DEGs, `Not DEG`),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Number of DEGs per comparison (p_adj < 0.05 and |log2FC| > 1)."
 )
 ```
 
 <div class="alert-info">
-**What to try, and what to notice.** Push the fold-change slider up while leaving the p-value slider lenient, then do the reverse. Notice that the two thresholds do not always agree on which genes "matter" — a gene can be highly significant with a small effect size (common with large sample sizes) or have a large effect size that just misses significance (common with small, noisy groups). There is no universally correct combination; the right threshold depends on what the candidate list will be used for next (a shortlist for expensive follow-up validation calls for stricter cutoffs than an exploratory hypothesis-generating list).
+**Thousands of DEGs: expected, not a red flag.** Tumor-vs-*normal* comparisons routinely change thousands of genes, because tumor tissue differs from normal tissue in many basic ways at once (proliferation, immune infiltrate, blood supply, cell types). What matters is whether the top genes make biological sense, which we check below.
+
+**A caveat to keep in mind.** The 6 controls come from patients who also contribute a Favorable tumor sample, but the model treats every sample as an independent individual. With 6 of 88 samples involved the effect is small, but a fully rigorous analysis would model the patient (e.g. with limma's `duplicateCorrelation()`).
 </div>
 
-# Part 5 — Closing Pediatric Lens
+The complete DEG lists are below (top 200 per comparison, ranked by adjusted p-value; the full tables with every tested gene are exported to `results/`).
+
+```{r table-degs-favorable}
+datatable(
+  de_favorable_vs_control %>% filter(status != "Not DEG") %>% slice_head(n = 200) %>%
+    mutate(across(where(is.numeric), ~ signif(.x, 3))),
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 10),
+  rownames = FALSE,
+  caption = "Top 200 DEGs, Favorable tumor vs normal kidney."
+)
+```
+
+```{r table-degs-unfavorable}
+datatable(
+  de_unfavorable_vs_control %>% filter(status != "Not DEG") %>% slice_head(n = 200) %>%
+    mutate(across(where(is.numeric), ~ signif(.x, 3))),
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 10),
+  rownames = FALSE,
+  caption = "Top 200 DEGs, Unfavorable tumor vs normal kidney."
+)
+```
+
+```{r export-de-results, echo=TRUE}
+# Full result tables (every tested gene), ranked by p-value; Module 3 reads them.
+dir.create("results", showWarnings = FALSE)
+write_csv(de_favorable_vs_control, "results/differential_expression_favorable_vs_control.csv")
+write_csv(de_unfavorable_vs_control, "results/differential_expression_unfavorable_vs_control.csv")
+```
+
+### A quick biological sanity check
+
+Before trusting thousands of DEGs, look at a few genes whose behavior in Wilms tumor is known in advance:
+
+- **`SIX1`, `SIX2`, `EYA1`, `CITED1`**: transcription factors of the *embryonic* nephron progenitor program. Wilms tumor arises from retained embryonic kidney tissue, so they should be strongly **up** in the tumor.
+- **`UMOD`, `AQP2`, `SLC22A2`**: markers of *mature*, functioning kidney tubules. A tumor made of undifferentiated cells should have lost them: strongly **down**.
+
+```{r table-marker-genes}
+marker_genes <- c("SIX1", "SIX2", "EYA1", "CITED1", "UMOD", "AQP2", "SLC22A2")
+
+datatable(
+  de_both %>%
+    filter(gene_symbol %in% marker_genes) %>%
+    select(comparison, gene_symbol, log2FC, p_adj, status) %>%
+    mutate(log2FC = round(log2FC, 2), p_adj = signif(p_adj, 3),
+           gene_symbol = factor(gene_symbol, levels = marker_genes)) %>%
+    arrange(gene_symbol, comparison),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE, pageLength = 20),
+  caption = "Known Wilms tumor biology: embryonic kidney genes up, mature kidney genes down."
+)
+```
+
+If these genes move in the expected direction, the pipeline is measuring real biology rather than noise.
+
+## Step 3 — Volcano Plots
+
+A volcano plot shows every tested gene at once: **effect size** on the x-axis (log2 fold-change, tumor vs normal) and **significance** on the y-axis (−log10 of the adjusted p-value, so smaller p-values are higher up). DEGs sit in the two upper corners: red for genes **up** in the tumor, blue for genes **down**. The 10 most significant genes of each comparison are labeled.
+
+```{r volcano-data, echo=TRUE}
+volcano_labels <- de_both %>%
+  filter(status != "Not DEG") %>%
+  group_by(comparison) %>%
+  slice_min(p_adj, n = 10, with_ties = FALSE) %>%
+  ungroup()
+```
+
+```{r plot-volcanos, fig.width=11, fig.height=6}
+de_both %>%
+  ggplot(aes(x = log2FC, y = -log10(p_adj), color = status)) +
+  geom_point(size = 0.8, alpha = 0.5) +
+  geom_vline(xintercept = c(-log2fc_cutoff, log2fc_cutoff), linetype = "dashed", color = "grey40") +
+  geom_hline(yintercept = -log10(padj_cutoff), linetype = "dashed", color = "grey40") +
+  geom_text_repel(data = volcano_labels, aes(label = gene_symbol),
+                  size = 3, color = "black", max.overlaps = Inf, show.legend = FALSE) +
+  scale_color_manual(values = c(Up = "#e74c3c", Down = "#2980b9", `Not DEG` = "grey75")) +
+  facet_wrap(~ comparison) +
+  labs(x = "log2 fold-change (tumor vs normal kidney)", y = "-log10(adjusted p-value)", color = NULL) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+<div class="alert-info">
+**How to read it.** The two volcanos look very similar: most of the difference from normal kidney is shared by both histologies. Notice also that the most significant genes (the highest points) are mostly on the **left**: the strongest signal is the *loss* of mature kidney genes in the tumor.
+</div>
+
+## Step 4 — PCA on the DEGs
+
+In Module 1 the PCA used *all* expressed genes, and the histology groups did not separate clearly. Here we repeat the PCA using **only the DEGs** of each comparison, on **all `r ncol(log2_expr)` samples** (controls, Favorable and Unfavorable together). If the DEGs capture a real tumor-vs-normal difference, the 6 controls should sit far away from the tumors along PC1.
+
+```{r pca-degs, echo=TRUE}
+group_colors <- c(Control = "#7f8c8d", Favorable = "#2980b9", Unfavorable = "#e74c3c")
+
+run_deg_pca <- function(de_table, comparison_label) {
+  deg_genes <- de_table %>% filter(status != "Not DEG") %>% pull(gene_symbol)
+
+  # Same settings as Module 1: genes centered, not scaled (all on the log2 scale).
+  pca <- prcomp(t(log2_expr[deg_genes, ]), center = TRUE, scale. = FALSE)
+  variance_pct <- round(100 * pca$sdev^2 / sum(pca$sdev^2), 1)
+
+  as_tibble(pca$x[, 1:2], rownames = "sample_id") %>%
+    left_join(de_samples, by = "sample_id") %>%
+    mutate(comparison = paste0(comparison_label, " DEGs (n = ", length(deg_genes), ")\n",
+                               "PC1 ", variance_pct[1], "%, PC2 ", variance_pct[2], "%"))
+}
+
+pca_degs <- bind_rows(
+  run_deg_pca(de_favorable_vs_control,   "Favorable vs Control"),
+  run_deg_pca(de_unfavorable_vs_control, "Unfavorable vs Control")
+)
+```
+
+```{r plot-pca-degs, fig.width=11, fig.height=5.5}
+pca_degs %>%
+  ggplot(aes(x = PC1, y = PC2, color = group)) +
+  geom_point(size = 2.5, alpha = 0.8) +
+  scale_color_manual(values = group_colors) +
+  facet_wrap(~ comparison, scales = "free") +
+  labs(color = NULL) +
+  theme_bw(base_size = 12) +
+  theme(legend.position = "bottom")
+```
+
+<div class="alert-info">
+**How to read it.** PC1 should separate the gray controls from the tumors: that is the tumor-vs-normal signal the DEGs were selected for. Notice that Favorable and Unfavorable tumors still overlap: the DEGs describe what *both* subtypes have in common against normal kidney, not what distinguishes them from each other. Keep in mind that this PCA is partly circular: the genes were *chosen* because they separate tumors from controls, so a clean separation here confirms the selection worked; it is not independent evidence.
+</div>
+
+## Step 5 — Heatmaps of the Top DEGs
+
+A volcano plot gives one number per gene; a heatmap shows the sample-by-sample pattern behind it. For each comparison we take the **top 25 up and top 25 down DEGs** (by adjusted p-value) and plot their expression in **all `r ncol(log2_expr)` samples**: the 6 controls and both tumor subtypes.
+
+- Each gene (row) is **z-scored** (`scale = "row"`): its values are expressed as standard deviations from that gene's own mean, so genes with very different expression levels share one color scale. Red = higher than the gene's average, blue = lower.
+- Both genes and samples are **clustered**: similar rows and similar columns are placed next to each other (the trees on the side and top).
+- The color bar on top shows each sample's group. If the DEGs are real, the controls should cluster together, away from the tumors. Showing both subtypes also lets you see whether the DEGs of one comparison behave the same way in the other subtype.
+
+```{r heatmap-function, echo=TRUE}
+plot_top_deg_heatmap <- function(de_table, title) {
+  top_genes <- de_table %>%
+    filter(status != "Not DEG") %>%
+    group_by(status) %>%
+    slice_min(p_adj, n = 25, with_ties = FALSE) %>%
+    pull(gene_symbol)
+
+  annotation <- data.frame(Group = de_samples$group, row.names = de_samples$sample_id)
+
+  pheatmap(
+    log2_expr[top_genes, ],
+    scale = "row",
+    color = colorRampPalette(c("#2980b9", "white", "#e74c3c"))(100),
+    breaks = seq(-3, 3, length.out = 101),
+    clustering_distance_rows = "correlation", clustering_distance_cols = "correlation",
+    clustering_method = "average",
+    annotation_col = annotation,
+    annotation_colors = list(Group = group_colors),
+    show_colnames = FALSE, fontsize_row = 7, border_color = NA, treeheight_row = 20,
+    main = title
+  )
+}
+```
+
+```{r heatmap-favorable, fig.width=10, fig.height=9}
+plot_top_deg_heatmap(de_favorable_vs_control,
+                     "Top 50 DEGs, Favorable vs Control (row z-score of log2 TPM)")
+```
+
+```{r heatmap-unfavorable, fig.width=10, fig.height=9}
+plot_top_deg_heatmap(de_unfavorable_vs_control,
+                     "Top 50 DEGs, Unfavorable vs Control (row z-score of log2 TPM)")
+```
+
+<div class="alert-info">
+**What to look for.** Two clear blocks: genes up in the tumor (red across tumors, blue in controls) and genes down (the opposite), with the 6 controls clustering together. A gene whose color is patchy across tumors (red in some, blue in others) is driven by a subset of patients rather than the whole group, which is worth knowing before calling it a biomarker.
+</div>
+
+## Step 6 — Which DEGs Are Shared? An UpSet Plot
+
+The two volcanos looked alike, but how many DEGs exactly are shared, and how many are specific to one histology? With more than two sets a Venn diagram becomes hard to read, so we use an **UpSet plot**. We compare four sets: genes **up** and **down** in each comparison.
+
+How to read it:
+
+- **Left bars**: the size of each set (e.g. all genes up in Favorable vs Control).
+- **Dots below the main plot**: a combination of sets. A single dot = genes found *only* in that set; dots joined by a line = genes found in *all* the joined sets (and no others).
+- **Top bars**: how many genes fall in that exact combination.
+
+```{r upset-sets, echo=TRUE}
+deg_sets <- list(
+  `Favorable up`     = de_favorable_vs_control   %>% filter(status == "Up")   %>% pull(gene_symbol),
+  `Favorable down`   = de_favorable_vs_control   %>% filter(status == "Down") %>% pull(gene_symbol),
+  `Unfavorable up`   = de_unfavorable_vs_control %>% filter(status == "Up")   %>% pull(gene_symbol),
+  `Unfavorable down` = de_unfavorable_vs_control %>% filter(status == "Down") %>% pull(gene_symbol)
+)
+```
+
+```{r plot-upset, fig.width=9, fig.height=5.5}
+upset(
+  fromList(deg_sets),
+  sets = names(deg_sets), keep.order = TRUE,
+  order.by = "freq",
+  sets.bar.color = c("#2980b9", "#2980b9", "#e74c3c", "#e74c3c"),
+  main.bar.color = "grey30",
+  mainbar.y.label = "DEGs in this combination", sets.x.label = "DEGs per set",
+  text.scale = 1.3
+)
+```
+
+The table below lists every DEG with its category, so any bar of the UpSet plot can be looked up gene by gene. Use the search box (e.g. type `Unfavorable only`) to filter.
+
+```{r table-deg-overlap}
+deg_overlap <- full_join(
+  de_favorable_vs_control   %>% select(gene_symbol, log2FC_favorable   = log2FC, status_favorable   = status),
+  de_unfavorable_vs_control %>% select(gene_symbol, log2FC_unfavorable = log2FC, status_unfavorable = status),
+  by = "gene_symbol"
+) %>%
+  filter(status_favorable != "Not DEG" | status_unfavorable != "Not DEG") %>%
+  mutate(
+    category = case_when(
+      status_favorable == status_unfavorable ~ paste("Shared", tolower(status_favorable)),
+      status_unfavorable == "Not DEG"        ~ "Favorable only",
+      status_favorable   == "Not DEG"        ~ "Unfavorable only",
+      TRUE                                   ~ "Opposite direction"
+    ),
+    across(starts_with("log2FC"), ~ round(.x, 2))
+  ) %>%
+  arrange(category, desc(abs(log2FC_unfavorable)))
+
+datatable(
+  deg_overlap,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 10),
+  rownames = FALSE,
+  caption = "Every DEG, with its status in each comparison and its UpSet category."
+)
+```
+
+```{r table-overlap-summary}
+datatable(
+  count(deg_overlap, category, name = "genes"),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "DEGs per category."
+)
+```
+
+<div class="alert-info">
+**Interpretation.** The largest bars are the **shared** sets: most of what separates a Wilms tumor from normal kidney is the same in both histologies (loss of mature kidney genes, gain of the embryonic program). The smaller histology-specific sets are where subtype differences may hide. Keep in mind that "Unfavorable only" can also mean "just missed the cutoff in Favorable": a gene at p_adj = 0.04 in one comparison and 0.06 in the other is not truly specific. This is why the log2FC of *both* comparisons is shown in the table above.
+</div>
+
+<div class="alert-info">
+**What carries forward to Module 3.** The two vs-control result tables exported above are the starting point for Module 3: genes that distinguish a subtype from normal kidney are the candidate panel for asking "how is regulation wired differently in this subtype".
+</div>
+
+# Part 4 — Closing Pediatric Lens
 
 This entire analysis ran on **`r nrow(sample_metadata)` samples** (`r sum(sample_metadata$histologic_subtype == "Favorable")` favorable, `r sum(sample_metadata$histologic_subtype == "Unfavorable")` unfavorable) — and that number, by real-world pediatric-oncology standards, is actually a relatively large, hard-won cohort: it exists only because the NCI's **TARGET** program and the Children's Oncology Group coordinated a multi-institution trial (NWTS-5) specifically to assemble enough anaplastic (unfavorable-histology) cases to study at all, since that subtype is individually rare.
 
-- **A p-value is not a biomarker.** Effect size (`log2FC`) and biological plausibility matter as much as, or more than, the adjusted p-value alone — the moderate, functionally diverse signal seen in this module is a reassuring sign, but still not sufficient on its own.
-- **Pediatric rare disease and cancer studies are almost always underpowered by adult-oncology standards.** With `r sum(sample_metadata$histologic_subtype=="Unfavorable")` unfavorable-histology samples here, and adult cancer cohort studies routinely running into the hundreds or thousands, every statistical test in this module runs on a fraction of the data an equivalent adult study would have — which argues for prioritizing genes with **large, consistent effect sizes** over borderline p-values (exactly what Part 4's sliders let you feel directly), and for treating any single-cohort candidate list as hypothesis-generating rather than diagnostic.
+- **A p-value is not a biomarker.** Effect size (`log2FC`) and biological plausibility matter as much as, or more than, the adjusted p-value alone. The expected behavior of known Wilms tumor genes (`SIX1`/`SIX2`/`EYA1` up, mature-kidney genes down) is a reassuring sign, but not sufficient on its own.
+- **The control group is the weakest link.** Every DEG in this module is measured against only 6 normal samples, all from Favorable-histology patients. limma's empirical Bayes shrinkage makes the most of them, but a bigger, independent control set would change the exact gene lists.
+- **Pediatric rare disease and cancer studies are almost always underpowered by adult-oncology standards.** With `r sum(sample_metadata$histologic_subtype=="Unfavorable")` unfavorable-histology samples here, and adult cancer cohort studies routinely running into the hundreds or thousands, every statistical test in this module runs on a fraction of the data an equivalent adult study would have — which argues for prioritizing genes with **large, consistent effect sizes** over borderline p-values (which is why our DEG definition requires |log2FC| > 1 on top of p_adj < 0.05), and for treating any single-cohort candidate list as hypothesis-generating rather than diagnostic.
 - **Any candidate list needs independent validation** — an orthogonal cohort, an orthogonal assay (e.g. qPCR, IHC), or both — before it can be called a biomarker in the clinical sense. Statistical significance in an expression comparison is also not the same question as mechanism: Module 3 takes the natural next step by asking how the genes distinguishing each subtype from normal kidney *regulate each other differently* between Favorable and Unfavorable, using gene regulatory network inference.
 
 ---
