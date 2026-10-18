@@ -1,10 +1,9 @@
 ---
 title: "Module 0 — From Raw Files to a Biobank-Grade Sample Sheet"
 subtitle: "BBCC2026 Tutorial: Organizing Metadata Before Any Analysis Begins"
-author: |
-  **Francesco Cecere**
-  *Senior Bioinformatic Researcher*
-  AORN Santobono-Pausilipon
+author:
+  - "**Francesco Cecere** · *Senior Bioinformatic Researcher* · AORN Santobono-Pausilipon IRCCS"
+  - "**Eva Luna Tarallo** · *Junior Bioinformatic Researcher* · AORN Santobono-Pausilipon IRCCS"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 output:
   html_document:
@@ -166,7 +165,6 @@ knitr::opts_chunk$set(
 ```
 
 ```{r libraries, include=FALSE}
-#IO SONO EVA
 library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
 library(plotly)      # interactive plots
 library(DT)          # interactive downloadable tables
@@ -197,10 +195,6 @@ library(scales)      # axis formatting
 This module — **Module 0** — is deliberately the least "computational" and the most conceptual, because in real translational research **the analysis is only as trustworthy as the metadata behind it.** This is especially true in **pediatric rare disease and pediatric oncology**, where cohorts are small by definition, samples are precious and often irreplaceable, and a single mislabeled sample can invalidate months of work. Before touching a single p-value, we need to know: *which sample is which, which samples belong together, and what, exactly, are we comparing?*
 
 **Session plan (≈50 minutes total — this module is the longest, deliberately, since it is also the least technical):** why metadata matters (8 min) → what good metadata looks like (7 min) → biobank basics (5 min) → hands-on: build & debug a mini biobank record (15 min) → plenary debrief (3 min) → closing pediatric lens (2 min) → applying all of this to the real TARGET-WT dataset (10 min).
-
-<div class="alert-info">
-**Facilitator note.** No R experience is assumed for this module — Parts 1-6 are deliberately conceptual (tables to read, not code to write), so a beginner group can follow along even before touching RStudio. The first code a participant needs to actually run is in "Applying This to a Real Dataset" below.
-</div>
 
 # Part 1 — Why Metadata Matters
 
@@ -252,8 +246,13 @@ sex_summary <- broken_cohort %>%
   filter(!is.na(sex)) %>%
   count(sex)
 
-cat("Patients in the full cohort:", nrow(broken_cohort), "\n")
-cat("Patients included in the sex-stratified summary:", sum(sex_summary$n), "\n")
+datatable(
+  tibble(
+    table    = c("Full cohort", "Sex-stratified summary"),
+    patients = c(nrow(broken_cohort), sum(sex_summary$n))
+  ),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE)
+)
 ```
 
 <div class="alert-info">
@@ -412,11 +411,20 @@ implausible_ages <- mini_biobank_messy %>% filter(!is.na(age_years) & age_years 
 missing_sex <- mini_biobank_messy %>% filter(is.na(sex))
 ```
 
-```{r verify-automated-checks, echo=TRUE}
-cat("Duplicate patient_id values:", paste(duplicate_ids$patient_id, collapse = ", "), "\n")
-cat("Records with an impossible collection date:", paste(impossible_dates$patient_id, collapse = ", "), "\n")
-cat("Records with an implausible age (>17 years):", paste(implausible_ages$patient_id, collapse = ", "), "\n")
-cat("Records with missing sex:", paste(missing_sex$patient_id, collapse = ", "), "\n")
+```{r table-automated-checks}
+datatable(
+  tibble(
+    check   = c("Duplicate patient_id", "Collection date before birth", "Implausible age (>17 years)", "Missing sex"),
+    records = c(
+      paste(duplicate_ids$patient_id, collapse = ", "),
+      paste(impossible_dates$patient_id, collapse = ", "),
+      paste(implausible_ages$patient_id, collapse = ", "),
+      paste(missing_sex$patient_id, collapse = ", ")
+    )
+  ),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Records flagged by each automated check."
+)
 ```
 
 Every single seeded error from the answer key above is caught by three short `dplyr` filters — no custom function required. This is the real argument for structured metadata: it is not just easier to *read*, it is checkable **by a machine**, which a free-text spreadsheet never is.
@@ -455,32 +463,19 @@ counts_raw <- read_csv(
   rename(gene_symbol = gene_name)
 ```
 
-```{r verify-raw-counts, echo=TRUE}
-# --- Verification chunk: never assume a file "looks right" without checking ---
-
-# 1. Dimensions: how many genes (rows) and samples (columns)?
-n_genes_raw   <- nrow(counts_raw)
-n_samples_raw <- ncol(counts_raw) - 1  # minus the gene_symbol column
-cat("Genes (rows):", n_genes_raw, "\n")
-cat("Samples (columns):", n_samples_raw, "\n")
-
-# 2. Uniqueness of gene identifiers: duplicated symbols would break any
-#    downstream join or per-gene grouping.
-n_duplicated_genes <- sum(duplicated(counts_raw$gene_symbol))
-cat("Duplicated gene symbols:", n_duplicated_genes, "\n")
-
-# 3. Missing values: a count matrix should not contain NAs.
-n_missing_values <- sum(is.na(counts_raw))
-cat("Missing values in the matrix:", n_missing_values, "\n")
-
-# 4. Species check from gene nomenclature, not assumption. Human (HGNC) gene
-#    symbols are fully upper-case (e.g. "TP53"); mouse (MGI) symbols only
-#    capitalise the first letter (e.g. "Tp53"). We check both forms for a
-#    housekeeping-type gene present in virtually every RNA-seq experiment.
-has_human_style <- "TP53" %in% counts_raw$gene_symbol
-has_mouse_style <- "Tp53" %in% counts_raw$gene_symbol
-cat("Human-style symbol 'TP53' present:", has_human_style, "\n")
-cat("Mouse-style symbol 'Tp53' present:", has_mouse_style, "\n")
+```{r table-raw-counts}
+# Human (HGNC) gene symbols are fully upper-case ("TP53"); mouse (MGI) symbols
+# only capitalise the first letter ("Tp53").
+datatable(
+  tibble(
+    property = c("Genes (rows)", "Samples (columns)", "Duplicated gene symbols",
+                 "Missing values", "Human-style 'TP53' present", "Mouse-style 'Tp53' present"),
+    value    = c(nrow(counts_raw), ncol(counts_raw) - 1, sum(duplicated(counts_raw$gene_symbol)),
+                 sum(is.na(counts_raw)), "TP53" %in% counts_raw$gene_symbol, "Tp53" %in% counts_raw$gene_symbol)
+  ),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Basic properties of the expression matrix."
+)
 ```
 
 <div class="alert-info">
@@ -499,10 +494,8 @@ sample_ids <- colnames(counts_raw)[-1]
 barcode_check <- tibble(case_submitter_id = sample_ids) %>%
   mutate(disease_code = str_split_i(case_submitter_id, "-", 2))
 
-cat("Unique disease codes found in the column names:",
-    paste(unique(barcode_check$disease_code), collapse = ", "), "\n")
-cat("All columns carry the Wilms-tumor disease code '50':",
-    all(barcode_check$disease_code == "50"), "\n")
+datatable(count(barcode_check, disease_code, name = "n_samples"), rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+          caption = "Disease codes found in the column names.")
 ```
 
 The disease code confirms every column belongs to the same cohort — a cheap, worthwhile check before anything else. What the barcode does **not** tell us is histology, age, sex, or outcome: for that we need the separate clinical file GDC ships alongside the expression data, `r "data/TARGET_WT_clinical_raw.csv"`.
@@ -522,15 +515,6 @@ datatable(
 )
 ```
 
-```{r verify-clinical, echo=TRUE}
-cat("Clinical sheet rows:", nrow(clinical_raw), "\n")
-cat("Histologic subtype counts:\n")
-print(count(clinical_raw, histologic_subtype))
-cat("Missing histologic_subtype:", sum(is.na(clinical_raw$histologic_subtype)), "\n")
-cat("Duplicated case_submitter_id in clinical sheet:",
-    sum(duplicated(clinical_raw$case_submitter_id)), "\n")
-```
-
 ## The Join, Verified — Not Assumed
 
 This is the central metadata task for this dataset: the expression matrix and the clinical sheet were pulled from GDC independently and must now be joined by `case_submitter_id`. As Part 1 showed with the toy cohort, a join that "runs without error" is not the same as a join that is *correct* — every row must be checked, not just trusted.
@@ -545,20 +529,17 @@ sample_metadata <- tibble(case_submitter_id = sample_ids) %>%
   )
 ```
 
-```{r verify-join, echo=TRUE}
-# 1. Every expression-matrix sample must find exactly one clinical row.
-n_unmatched <- sum(is.na(sample_metadata$histologic_subtype))
-cat("Expression samples with no matching clinical record:", n_unmatched, "\n")
-
-# 2. No case should appear more than once after the join (would indicate a
-#    duplicated clinical row silently fanning out a sample into two rows).
-cat("Rows before join:", length(sample_ids), " | rows after join:", nrow(sample_metadata), "\n")
-cat("Row count preserved by the join:", length(sample_ids) == nrow(sample_metadata), "\n")
-
-# 3. Every clinical case should also appear in the expression matrix (no
-#    clinical-only "phantom" cases silently carried forward).
-clinical_only <- setdiff(clinical_raw$case_submitter_id, sample_ids)
-cat("Clinical cases with no expression data:", length(clinical_only), "\n")
+```{r table-join-checks}
+datatable(
+  tibble(
+    check = c("Expression samples with no clinical record", "Rows before join",
+              "Rows after join", "Clinical cases with no expression data"),
+    value = c(sum(is.na(sample_metadata$histologic_subtype)), length(sample_ids),
+              nrow(sample_metadata), length(setdiff(clinical_raw$case_submitter_id, sample_ids)))
+  ),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Join between the expression matrix and the clinical sheet."
+)
 ```
 
 The full joined, verified sample sheet — downloadable as CSV/Excel/PDF — is shown below.
@@ -602,43 +583,10 @@ We save the joined, verified sample sheet so that Modules 1–3 read a single, c
 ```{r export-metadata, echo=TRUE}
 # Persist the verified metadata table to disk for reuse by later modules.
 write_csv(sample_metadata, "data/sample_metadata.csv")
-
-# Confirm the file was written and round-trips correctly.
-reloaded_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
-cat("sample_metadata.csv written with", nrow(reloaded_metadata), "rows and",
-    ncol(reloaded_metadata), "columns.\n")
-cat("Reloaded table identical to in-memory table:",
-    identical(dim(reloaded_metadata), dim(sample_metadata)), "\n")
 ```
 
 ---
 
-## Summary
-
-This report covers the following analyses:
-
-| Section | Description |
-|---------|-------------|
-| Part 1 — Why metadata matters | Demonstrated, with a toy cohort, how an undocumented unit inconsistency and a silently-dropped missing field each produce a confidently wrong result without any error or warning. |
-| Part 2 — What good metadata looks like | Listed the minimal required fields for a biological sample record, introduced FAIR principles and ontologies (e.g. HPO) at a high level, and contrasted a messy vs. a clean toy record. |
-| Part 3 — Biobank basics | Described the three linked components of a biobank record (sample, clinical data, consent) and pediatric-specific consent/assent/re-consent considerations. |
-| Part 4 — Hands-on exercise | Built and debugged a 6-record fictional pediatric mini biobank table (2 incomplete records, 4 seeded errors — duplicate ID, unit inconsistency, missing sex, impossible date), then reproduced every finding with automated `dplyr` checks. |
-| Parts 5-6 — Debrief and pediatric lens | Discussed which errors were easiest/hardest to catch and fixable vs. flag-only, then connected every issue to pediatric-specific consent and age-resolution considerations. |
-| Loading the raw expression matrix | Loaded the real TARGET-WT (Wilms tumor) TPM expression matrix and verified its dimensions, gene-symbol uniqueness, absence of missing values, and species (human, from HGNC-style nomenclature). |
-| Joining to a real clinical sheet | Parsed the real TARGET barcode structure, loaded GDC's clinical/demographic sheet, and joined it to the expression matrix by case ID — verifying no case was lost or duplicated in either direction. |
-| Exporting metadata | Saved the joined, verified sample sheet to `data/sample_metadata.csv` for reuse in Modules 1–3. |
-
-### Downloadable Outputs
-
-- **Tables**: the toy cohort, messy/clean illustration, mini biobank exercise table, sample metadata, and pairing-check tables all include CSV / Excel / PDF download buttons (where rendered via `DT::datatable()`).
-- **Files**: `data/sample_metadata.csv` (reusable metadata table for subsequent modules).
-
-<div class="alert-info">
-**Facilitator note.** Suggested break before Module 1: **10 minutes.**
-</div>
-
----
-
 <div class="report-footer">
-Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere · Senior Bioinformatic Researcher · AORN Santobono-Pausilipon
+Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere (Senior Bioinformatic Researcher) · Eva Luna Tarallo (Junior Bioinformatic Researcher) · AORN Santobono-Pausilipon IRCCS
 </div>

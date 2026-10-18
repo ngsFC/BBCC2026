@@ -1,10 +1,9 @@
 ---
 title: "Module 1 — Exploratory Analysis and Quality Control"
 subtitle: "BBCC2026 Tutorial: Do the Samples Look the Way We Expect Before We Test Anything?"
-author: |
-  **Francesco Cecere**
-  *Senior Bioinformatic Researcher*
-  AORN Santobono-Pausilipon
+author:
+  - "**Francesco Cecere** · *Senior Bioinformatic Researcher* · AORN Santobono-Pausilipon IRCCS"
+  - "**Eva Luna Tarallo** · *Junior Bioinformatic Researcher* · AORN Santobono-Pausilipon IRCCS"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 output:
   html_document:
@@ -166,25 +165,20 @@ knitr::opts_chunk$set(
 ```
 
 ```{r libraries, include=FALSE}
-library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
-library(plotly)      # interactive plots
-library(DT)          # interactive downloadable tables
-library(knitr)       # kable for simple inline tables
-library(scales)      # axis formatting
+library(tidyverse)  
+library(plotly)     
+library(DT)         
+library(knitr)      
+library(scales)     
 ```
 
 # From Module 0
 
-Module 0 joined the real TARGET-WT (Wilms tumor) expression matrix to a real clinical sheet into a verified, structured sample sheet (`data/sample_metadata.csv`): 124 samples, 82 **favorable** and 42 **unfavorable (anaplastic)** histology, with every case matched and no unmatched or duplicated rows. Before we compare groups statistically in Module 2, this module asks a more basic question: **do the samples themselves look trustworthy?** Quality control is not a formality — an unnoticed outlier sample, batch effect, or mislabeled group can produce a "biomarker" that is really just a technical artifact.
+Module 0 load the TARGET-WT (Wilms tumor) expression matrix and clinical sheet (`data/sample_metadata.csv`): 124 samples, 82 **favorable** and 42 **unfavorable** histology. Before we compare groups statistically in Module 2, this module asks a more basic question: **do the samples themselves look ok?** Quality control is not a formality, an unnoticed outlier sample, batch effect, or mislabeled group can produce a "biomarker" that is really just a technical artifact.
 
-**Session plan (≈35 minutes):** recap & reload the data (5 min) → library sizes (5 min) → PCA, explained and plotted (15 min) → sample-sample correlation (7 min) → pediatric QC takeaways (3 min).
-
-<div class="alert-info">
-**Facilitator note.** This module is the first one with genuinely new statistical ideas (PCA, correlation). Each plot below is interactive (hover, zoom, download via the plotly toolbar) — encourage the group to hover over individual points/cells rather than just reading the static shape, it makes the QC checks much more concrete for beginners.
-</div>
+**Session plan:** recap & reload the data → library sizes → PCA, explained and plotted → sample-sample correlation → pediatric QC.
 
 ```{r load-data, echo=TRUE}
-# Load the expression matrix and the verified metadata table produced in Module 0.
 counts_raw <- read_csv(
   "data/TARGET_WT_gene_expression_tpm.csv",
   show_col_types = FALSE
@@ -195,43 +189,50 @@ sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
 ```
 
 ```{r verify-join, echo=TRUE}
-# Reshape to long format (one row per gene x sample) and join in the metadata.
-# We verify row counts before and after the join to make sure no sample was
-# silently dropped or duplicated.
-n_genes   <- nrow(counts_raw)
-n_samples <- ncol(counts_raw) - 1
-
 counts_long <- counts_raw %>%
   pivot_longer(-gene_symbol, names_to = "case_submitter_id", values_to = "tpm") %>%
   left_join(sample_metadata, by = "case_submitter_id")
-
-expected_rows <- n_genes * n_samples
-cat("Expected rows after reshape (genes x samples):", expected_rows, "\n")
-cat("Actual rows after reshape:", nrow(counts_long), "\n")
-cat("Rows with no matching metadata after join (should be 0):",
-    sum(is.na(counts_long$histologic_subtype)), "\n")
 ```
 
 # TPM Sum Sanity Check per Sample
 
-Unlike raw counts, **TPM values are already normalized so that every sample's protein-coding genes sum to approximately the same total** — that is what "transcripts per million" means by construction. This gives us a cheap, different sanity check than a traditional library-size plot: instead of expecting variation, **we expect near-constancy**, and a sample that deviates noticeably from the rest is the one worth flagging (degraded RNA, a processing anomaly, or a much larger non-protein-coding fraction than everyone else).
+Unlike raw counts, **TPM values are already normalized so that every sample's protein-coding genes sum to approximately the same total**, that is what "transcripts per million" means by construction.
+
+<div class="alert-info">
+**Beginner note — how TPM is computed.** For gene $i$ in a given sample, with $X_i$ reads mapped to it and an effective transcript length $\ell_i$ (in kilobases), TPM is built in two steps:
+
+$$
+\text{RPK}_i = \frac{X_i}{\ell_i}
+\qquad\qquad
+\text{TPM}_i = \frac{\text{RPK}_i}{\sum_j \text{RPK}_j} \times 10^6
+$$
+
+1. **Divide by gene length first** (reads per kilobase, RPK): a long gene collects more reads than a short one at the same expression level, so this removes the length bias.
+2. **Then divide by the sample's total RPK and multiply by one million**: this removes the sequencing-depth difference between samples, so every sample is put on the same scale.
+
+The consequence is built into the formula: summed over **all** genes, every sample's TPM adds up to exactly $10^6$. Our matrix keeps only **protein-coding** genes (non-coding RNAs, pseudogenes etc. were dropped when the data were assembled), so here each sample sums to somewhat *less* than one million, the missing part is exactly the non-protein-coding share of that sample's transcripts.
+</div>
+
+This gives us a cheap, different sanity check than a traditional library-size plot: instead of expecting variation, **we expect near-constancy**, and a sample that deviates noticeably from the rest is the one worth flagging (degraded RNA, a processing anomaly).
 
 ```{r library-sizes, echo=TRUE}
-# Sum TPM across all protein-coding genes for each sample. Expected to be
-# roughly constant by construction -- an outlier here is the signal.
 library_sizes <- counts_long %>%
   group_by(case_submitter_id, histologic_subtype) %>%
   summarise(total_tpm = sum(tpm), .groups = "drop") %>%
   arrange(total_tpm)
 ```
 
-```{r verify-library-sizes, echo=TRUE}
-cat("Per-sample total TPM -- min:", round(min(library_sizes$total_tpm)),
-    " median:", round(median(library_sizes$total_tpm)),
-    " max:", round(max(library_sizes$total_tpm)), "\n")
+```{r table-library-sizes}
+datatable(
+  library_sizes %>%
+    summarise(min = min(total_tpm), median = median(total_tpm), max = max(total_tpm)) %>%
+    mutate(across(everything(), round)),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Per-sample total TPM across protein-coding genes."
+)
 ```
 
-```{r plot-library-sizes, fig.height=7}
+```{r plot-library-sizes, fig.height=11}
 # Order samples by total TPM for a readable bar chart, colored by histology.
 p_libsize <- library_sizes %>%
   mutate(case_submitter_id = fct_reorder(case_submitter_id, total_tpm)) %>%
@@ -251,10 +252,6 @@ ggplotly(p_libsize)
 
 PCA summarizes genome-wide variation into a small number of orthogonal axes. If favorable and unfavorable samples separate cleanly along the top components, histology is a major driver of overall transcriptional variation; if they do not, histology differences (if any) are more subtle than other sources of variability (batch, individual variation, etc.).
 
-<div class="alert-info">
-**Beginner note — what is PCA, in plain language?** Each sample here is a point in a space with 19,938 dimensions (one per gene) — far too many to plot or even imagine. **PCA finds a small number of new axes (PC1, PC2, ...) that capture as much of the sample-to-sample variation as possible**, so we can plot the single biggest source of variation on the x-axis (PC1) and the second-biggest on the y-axis (PC2) and still see most of the real structure in just one 2D scatterplot. No gene-by-gene inspection needed — it is a summary of everything at once.
-</div>
-
 ```{r filter-and-pca, echo=TRUE}
 # Filter out very low-expressed genes before PCA: near-constant, low-TPM
 # genes contribute mostly noise to variance-based methods like PCA.
@@ -262,13 +259,7 @@ gene_mean_expr <- counts_long %>%
   group_by(gene_symbol) %>%
   summarise(mean_tpm = mean(tpm), .groups = "drop")
 
-n_genes_before_filter <- nrow(gene_mean_expr)
 genes_to_keep <- gene_mean_expr %>% filter(mean_tpm >= 1) %>% pull(gene_symbol)
-n_genes_after_filter <- length(genes_to_keep)
-
-cat("Genes before expression filter:", n_genes_before_filter, "\n")
-cat("Genes after filter (mean TPM >= 1):", n_genes_after_filter,
-    sprintf("(%.1f%% retained)", 100 * n_genes_after_filter / n_genes_before_filter), "\n")
 
 # Build a genes x samples matrix of log2-transformed, filtered TPM for PCA.
 expr_matrix_wide <- counts_long %>%
@@ -290,14 +281,6 @@ variance_explained <- tibble(
   PC = paste0("PC", seq_along(pca_result$sdev)),
   variance_explained_pct = round(100 * pca_result$sdev^2 / sum(pca_result$sdev^2), 2)
 )
-```
-
-```{r verify-pca, echo=TRUE}
-# Sanity check: variance explained should sum to (approximately) 100%.
-cat("Sum of variance explained across all PCs:",
-    round(sum(variance_explained$variance_explained_pct), 2), "%\n")
-cat("Variance explained by PC1-PC5:\n")
-print(head(variance_explained, 5))
 ```
 
 ```{r table-variance-explained}
@@ -329,7 +312,7 @@ ggplotly(p_pca, tooltip = c("text", "colour"))
 
 As a second, complementary view of sample structure, we compute pairwise Pearson correlations between all samples on the same filtered, log2-transformed matrix. Samples from the same histology are expected to correlate more strongly with each other than with samples from the other group; a sample that correlates poorly with everyone (including its own group) is a candidate outlier worth flagging.
 
-```{r correlation-heatmap, echo=TRUE, fig.height=9}
+```{r correlation-matrix, echo=TRUE}
 # Compute the full sample-by-sample correlation matrix.
 sample_cor_matrix <- cor(expr_matrix, method = "pearson")
 
@@ -337,58 +320,63 @@ sample_cor_matrix <- cor(expr_matrix, method = "pearson")
 sample_order <- sample_metadata %>% arrange(histologic_subtype, case_submitter_id) %>% pull(case_submitter_id)
 sample_cor_matrix <- sample_cor_matrix[sample_order, sample_order]
 
-# NOTE: with 124 samples this is a 124x124 = 15,376-cell matrix. Routing it
-# through ggplot's geom_tile() + ggplotly() turns every cell into its own
-# plotly shape, which bloated this report's HTML to ~60MB (over GitHub's
-# 50MB warning threshold). plotly's native heatmap trace renders the same
-# matrix as a single trace, so we use it directly here instead of the usual
-# ggplot2-then-ggplotly pattern.
-plot_ly(
-  z = sample_cor_matrix,
-  x = sample_order,
-  y = sample_order,
-  type = "heatmap",
-  colors = colorRamp(c("#e74c3c", "white", "#2980b9")),
-  zmid = 0.9,
-  hovertemplate = "%{x} vs %{y}<br>correlation: %{z:.3f}<extra></extra>"
-) %>%
-  layout(
-    title = "Pairwise sample correlation (Pearson, log2 scale)",
-    xaxis = list(showticklabels = FALSE, title = ""),
-    yaxis = list(showticklabels = FALSE, title = "")
+cor_long <- as_tibble(sample_cor_matrix, rownames = "sample_x") %>%
+  pivot_longer(-sample_x, names_to = "sample_y", values_to = "correlation") %>%
+  mutate(
+    sample_x = factor(sample_x, levels = sample_order),
+    sample_y = factor(sample_y, levels = sample_order)
   )
+```
+
+The heatmap below is drawn as a static image: with 124 samples it has 15,376 cells, too many for a light interactive plot. The dashed lines separate Favorable (bottom-left block) from Unfavorable (top-right block).
+
+```{r plot-correlation-heatmap, fig.height=7, fig.width=8}
+n_favorable <- sum(sample_metadata$histologic_subtype == "Favorable")
+
+cor_long %>%
+  ggplot(aes(x = sample_x, y = sample_y, fill = correlation)) +
+  geom_raster() +
+  geom_vline(xintercept = n_favorable + 0.5, linetype = "dashed") +
+  geom_hline(yintercept = n_favorable + 0.5, linetype = "dashed") +
+  scale_fill_gradient2(low = "#e74c3c", mid = "white", high = "#2980b9", midpoint = 0.9) +
+  coord_equal() +
+  labs(x = NULL, y = NULL, fill = "Pearson r",
+       title = "Pairwise sample correlation (log2 scale)") +
+  theme_minimal(base_size = 11) +
+  theme(axis.text = element_blank(), panel.grid = element_blank())
+```
+
+To find individual outliers, it is easier to summarize each sample with one number: its **median correlation with all other samples**. A sample far below the rest of its group is the one worth flagging. Hover a point to see its ID.
+
+```{r median-correlation, echo=TRUE}
+median_cor <- cor_long %>%
+  filter(sample_x != sample_y) %>%
+  group_by(case_submitter_id = as.character(sample_x)) %>%
+  summarise(median_correlation = median(correlation), .groups = "drop") %>%
+  left_join(sample_metadata, by = "case_submitter_id")
+```
+
+```{r plot-median-correlation, fig.height=5}
+p_median_cor <- median_cor %>%
+  ggplot(aes(x = histologic_subtype, y = median_correlation, color = histologic_subtype, text = case_submitter_id)) +
+  geom_jitter(width = 0.2, height = 0, size = 2.5, alpha = 0.8) +
+  scale_color_manual(values = c(Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
+  labs(x = NULL, y = "Median correlation with all other samples",
+       title = "Per-sample median correlation") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "none")
+
+ggplotly(p_median_cor, tooltip = c("text", "y"))
 ```
 
 # Why QC Is Non-Negotiable in Pediatric Data
 
 - **Small n means every sample carries weight.** In a rare pediatric tumor cohort of, say, 15–20 patients, one undetected outlier sample (degraded RNA, contamination, mislabeling) can visibly shift a PCA plot and materially change a differential expression result — the same outlier would be statistically invisible in a 500-sample adult cohort.
 - **Batch effects are a constant threat in multi-site pediatric consortia.** Rare disease and pediatric cancer studies frequently pool samples across hospitals and sequencing runs out of necessity, since no single center sees enough cases alone. PCA and correlation heatmaps are the first line of defense for spotting a batch masquerading as a biological signal.
-- **QC decisions must be documented, not silently applied.** Removing an "outlier" sample changes the very small denominator a pediatric study is built on — any exclusion should be justified explicitly in the methods, exactly as the filtering and matching decisions were logged in Module 0 and this module.
-
----
-
-## Summary
-
-This report covers the following analyses:
-
-| Section | Description |
-|---------|-------------|
-| Data loading and join verification | Reloaded the TARGET-WT expression matrix and Module 0 metadata, confirmed the reshape produced the expected number of rows with no unmatched samples. |
-| TPM sum sanity check | Computed and visualized total TPM per sample (expected near-constant by construction) to flag any sample that deviates from the rest. |
-| PCA | Filtered low-expressed genes, ran PCA on log2-transformed data, and visualized sample separation by histologic subtype with variance-explained reported per component. |
-| Sample-sample correlation | Computed and visualized the full pairwise Pearson correlation matrix to identify potential outlier samples. |
-
-### Downloadable Outputs
-
-- **Tables**: the variance-explained table includes CSV / Excel / PDF download buttons.
-- **Plots**: all interactive plots (library size, PCA, correlation heatmap) include a PNG download button via the plotly toolbar.
-
-<div class="alert-info">
-**Facilitator note.** Suggested break before Module 2: **10 minutes.**
-</div>
+- **QC decisions must be documented, not silently applied.** Removing an "outlier" sample changes the very small denominator a pediatric study is built on, so, any exclusion should be justified explicitly in the methods, exactly as the filtering and matching decisions were logged in Module 0 and this module.
 
 ---
 
 <div class="report-footer">
-Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere · Senior Bioinformatic Researcher · AORN Santobono-Pausilipon
+Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere (Senior Bioinformatic Researcher) · Eva Luna Tarallo (Junior Bioinformatic Researcher) · AORN Santobono-Pausilipon IRCCS
 </div>

@@ -1,10 +1,9 @@
 ---
 title: "Module 2 — Expression Analysis and Candidate Biomarker Discovery"
 subtitle: "BBCC2026 Tutorial: From 17,616 Genes to a Ranked Candidate List"
-author: |
-  **Francesco Cecere**
-  *Senior Bioinformatic Researcher*
-  AORN Santobono-Pausilipon
+author:
+  - "**Francesco Cecere** · *Senior Bioinformatic Researcher* · AORN Santobono-Pausilipon IRCCS"
+  - "**Eva Luna Tarallo** · *Junior Bioinformatic Researcher* · AORN Santobono-Pausilipon IRCCS"
 date: "`r format(Sys.Date(), '%d %B %Y')`"
 output:
   html_document:
@@ -181,10 +180,6 @@ Module 1 confirmed that TPM sums, expression distributions, and PCA structure ar
 
 **Session plan (≈60 minutes):** presenting the dataset (5 min) → explicit bridge to Module 0 (5 min) → guided walkthrough, Favorable vs Unfavorable (20 min) → adding a real negative control, tumor vs normal (10 min) → light hands-on threshold exploration (10 min) → closing pediatric lens (5 min).
 
-<div class="alert-info">
-**Facilitator note.** This is the statistically densest module — a per-gene t-test, multiple-testing correction, and two plot types in one go. Beginners do not need to read the `nest()`/`map()` code closely (see the callout before it); the goal is to understand *what* each step does and why, not to type the pipeline from memory.
-</div>
-
 # Part 1 — Presenting the Dataset
 
 Every module so far has used the same real dataset: **TARGET-WT**, RNA-seq expression (TPM) for 124 real pediatric Wilms tumor patients from the Children's Oncology Group's NWTS-5 trial, released through the NCI's **TARGET** program via the **GDC Data Portal**. Samples split into two groups by real clinical histology (`Favorable`, 82 samples, and `Unfavorable`/anaplastic, 42 samples — see Module 0) — not a proxy label, the same grouping used in real clinical risk stratification for this cancer.
@@ -210,9 +205,6 @@ sample_metadata <- read_csv("data/sample_metadata.csv", show_col_types = FALSE)
 counts_long <- counts_raw %>%
   pivot_longer(-gene_symbol, names_to = "case_submitter_id", values_to = "tpm") %>%
   left_join(sample_metadata, by = "case_submitter_id")
-
-cat("Rows with unmatched metadata after join (should be 0):",
-    sum(is.na(counts_long$histologic_subtype)), "\n")
 ```
 
 ```{r table-real-metadata}
@@ -264,11 +256,15 @@ counts_filtered <- counts_long %>%
   mutate(log2_tpm = log2(tpm + 1))
 ```
 
-```{r verify-filter, echo=TRUE}
-cat("Genes before filtering:", n_genes_before, "\n")
-cat("Genes after filtering (mean TPM >= 1):", n_genes_after, "\n")
-cat("Genes removed:", n_genes_before - n_genes_after,
-    sprintf("(%.1f%% of genes)", 100 * (n_genes_before - n_genes_after) / n_genes_before), "\n")
+```{r table-filter}
+datatable(
+  tibble(
+    step  = c("Genes before filtering", "Genes after filtering (mean TPM >= 1)", "Genes removed"),
+    genes = c(n_genes_before, n_genes_after, n_genes_before - n_genes_after)
+  ),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Effect of the low-expression filter."
+)
 ```
 
 <div class="alert-info">
@@ -313,12 +309,17 @@ de_results <- de_results_raw %>%
   arrange(p_adj)
 ```
 
-```{r verify-de-tests, echo=TRUE}
-cat("Genes tested:", nrow(de_results), "\n")
-cat("Genes where the test could not be run (e.g. zero variance):", n_tests_failed, "\n")
-cat("Genes significant at p_adj < 0.05:", sum(de_results$p_adj < 0.05), "\n")
-cat("Genes significant at p_adj < 0.05 AND |log2FC| > 1:",
-    sum(de_results$p_adj < 0.05 & abs(de_results$log2FC) > 1), "\n")
+```{r table-de-summary}
+datatable(
+  tibble(
+    category = c("Genes tested", "Genes where the test could not be run",
+                 "Significant (p_adj < 0.05)", "Significant (p_adj < 0.05) and |log2FC| > 1"),
+    genes    = c(nrow(de_results), n_tests_failed, sum(de_results$p_adj < 0.05),
+                 sum(de_results$p_adj < 0.05 & abs(de_results$log2FC) > 1))
+  ),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Favorable vs Unfavorable: how many genes pass each threshold."
+)
 ```
 
 <div class="alert-info">
@@ -389,12 +390,6 @@ heatmap_data <- heatmap_data %>%
   )
 ```
 
-```{r verify-heatmap-data, echo=TRUE}
-cat("Heatmap genes:", n_distinct(heatmap_data$gene_symbol), "\n")
-cat("Heatmap samples:", n_distinct(heatmap_data$case_submitter_id), "\n")
-cat("Any missing z-scores:", any(is.na(heatmap_data$z_score)), "\n")
-```
-
 ```{r plot-heatmap, fig.height=9}
 p_heatmap <- heatmap_data %>%
   ggplot(aes(x = case_submitter_id, y = gene_symbol, fill = z_score, text = paste0(gene_symbol, " / ", case_submitter_id, " (", histologic_subtype, ")"))) +
@@ -435,10 +430,6 @@ datatable(
 # anyone who wants the complete, unfiltered result set.
 dir.create("results", showWarnings = FALSE)
 write_csv(de_results, "results/differential_expression_results.csv")
-
-reloaded_results <- read_csv("results/differential_expression_results.csv", show_col_types = FALSE)
-cat("results/differential_expression_results.csv written with", nrow(reloaded_results), "rows.\n")
-cat("Row count matches in-memory table:", nrow(reloaded_results) == nrow(de_results), "\n")
 ```
 
 ## A Quick Biological Sanity Check
@@ -469,11 +460,6 @@ control_counts_raw <- read_csv(
   rename(gene_symbol = gene_name)
 
 control_clinical <- read_csv("data/TARGET_WT_control_clinical_raw.csv", show_col_types = FALSE)
-
-cat("Control samples:", ncol(control_counts_raw) - 1, "\n")
-cat("Control matrix genes:", nrow(control_counts_raw), "\n")
-cat("Gene set identical to the tumor matrix:",
-    setequal(control_counts_raw$gene_symbol, counts_raw$gene_symbol), "\n")
 ```
 
 <div class="alert-info">
@@ -488,9 +474,12 @@ cat("Gene set identical to the tumor matrix:",
 # tracked by their own sample_submitter_id (e.g. "...-11A") instead, and the
 # two groups are combined explicitly in code below rather than via a join on
 # case_submitter_id, which would silently fan out for these 6 shared patients.
-overlap_cases <- intersect(control_clinical$case_submitter_id, sample_metadata$case_submitter_id)
-cat("Normal-tissue donors who also have a tumor sample in this dataset:",
-    length(overlap_cases), "/", nrow(control_clinical), "\n")
+datatable(
+  control_clinical %>%
+    mutate(also_has_tumor_sample = case_submitter_id %in% sample_metadata$case_submitter_id),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "The 6 normal-tissue samples, and whether the same patient also has a tumor sample."
+)
 ```
 
 ```{r prep-de-vs-control, echo=TRUE}
@@ -553,18 +542,21 @@ de_favorable_vs_control   <- run_de_vs_control("Favorable", fav_ids)
 de_unfavorable_vs_control <- run_de_vs_control("Unfavorable", unfav_ids)
 ```
 
-```{r verify-de-vs-control, echo=TRUE}
-cat("Favorable (n=", length(fav_ids), ") vs Control (n=6) -- genes kept (mean_tpm>=1):",
-    de_favorable_vs_control$genes_after, "/", de_favorable_vs_control$genes_before, "\n")
-cat("  significant (p_adj<0.05):", sum(de_favorable_vs_control$results$p_adj < 0.05),
-    " | significant & |log2FC|>1:",
-    sum(de_favorable_vs_control$results$p_adj < 0.05 & abs(de_favorable_vs_control$results$log2FC) > 1), "\n\n")
-
-cat("Unfavorable (n=", length(unfav_ids), ") vs Control (n=6) -- genes kept (mean_tpm>=1):",
-    de_unfavorable_vs_control$genes_after, "/", de_unfavorable_vs_control$genes_before, "\n")
-cat("  significant (p_adj<0.05):", sum(de_unfavorable_vs_control$results$p_adj < 0.05),
-    " | significant & |log2FC|>1:",
-    sum(de_unfavorable_vs_control$results$p_adj < 0.05 & abs(de_unfavorable_vs_control$results$log2FC) > 1), "\n")
+```{r table-de-vs-control}
+datatable(
+  tibble(
+    comparison     = c("Favorable vs Control", "Unfavorable vs Control"),
+    tumor_samples  = c(length(fav_ids), length(unfav_ids)),
+    control_samples = ncol(control_counts_raw) - 1,
+    genes_tested   = c(de_favorable_vs_control$genes_after, de_unfavorable_vs_control$genes_after),
+    significant    = c(sum(de_favorable_vs_control$results$p_adj < 0.05),
+                       sum(de_unfavorable_vs_control$results$p_adj < 0.05)),
+    significant_and_fc = c(sum(de_favorable_vs_control$results$p_adj < 0.05 & abs(de_favorable_vs_control$results$log2FC) > 1),
+                           sum(de_unfavorable_vs_control$results$p_adj < 0.05 & abs(de_unfavorable_vs_control$results$log2FC) > 1))
+  ),
+  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
+  caption = "Tumor vs normal kidney: genes tested and significant (p_adj < 0.05; significant_and_fc adds |log2FC| > 1)."
+)
 ```
 
 <div class="alert-info">
@@ -585,11 +577,6 @@ kable(de_unfavorable_vs_control$results %>% slice_head(n = 10) %>% mutate(across
 ```{r export-de-vs-control, echo=TRUE}
 write_csv(de_favorable_vs_control$results, "results/differential_expression_favorable_vs_control.csv")
 write_csv(de_unfavorable_vs_control$results, "results/differential_expression_unfavorable_vs_control.csv")
-
-cat("results/differential_expression_favorable_vs_control.csv written with",
-    nrow(read_csv("results/differential_expression_favorable_vs_control.csv", show_col_types = FALSE)), "rows.\n")
-cat("results/differential_expression_unfavorable_vs_control.csv written with",
-    nrow(read_csv("results/differential_expression_unfavorable_vs_control.csv", show_col_types = FALSE)), "rows.\n")
 ```
 
 <div class="alert-info">
@@ -659,31 +646,6 @@ This entire analysis ran on **`r nrow(sample_metadata)` samples** (`r sum(sample
 
 ---
 
-## Summary
-
-This report covers the following analyses:
-
-| Section | Description |
-|---------|-------------|
-| Part 1 — Presenting the dataset | Described TARGET-WT and its 124 samples/82 favorable/42 unfavorable histology groups, and situated it relative to TCGA (TARGET's adult-cancer counterpart on the same GDC portal). |
-| Part 2 — Bridge to Module 0 | Compared the real metadata fields available for TARGET-WT against the clinical schema built by hand in Module 0 — closer to that schema than a typical public dataset, though still missing collection date and machine-readable consent. |
-| Part 3 — Guided walkthrough | Filtered low-expressed genes, ran a Welch two-sample t-test per gene (Favorable vs Unfavorable histology) on log2-transformed TPM using `purrr`/`broom` with BH FDR correction, visualized the result as a volcano plot and a z-scored heatmap of the top 30 candidates, and noted the top genes span diverse functional categories rather than one narrow confound. |
-| Part 3 — Negative control | Loaded 6 real matched-normal RNA-seq samples, flagged the case/sample ID subtlety they introduce, and ran Favorable-vs-Control and Unfavorable-vs-Control differential expression — both topped by nephron progenitor genes (`SIX1`/`SIX2`/`EYA1`), a strong biological sanity check. |
-| Part 4 — Guided exploration | Built a `crosstalk`-linked slider/plot/table explorer over the top 300 candidates, letting fold-change and p-value thresholds be adjusted live to see how the candidate list changes. |
-| Part 5 — Closing pediatric lens | Used this analysis's own cohort size as an illustration of how rare anaplastic-histology pediatric cases are, and discussed statistical significance vs. biological relevance under that constraint. |
-
-### Downloadable Outputs
-
-- **Tables**: the real-metadata, top-candidates, vs-control, and live-filtered explorer tables all include CSV / Excel (/ PDF where applicable) download buttons.
-- **Plots**: the volcano plot and heatmap include a PNG download button via the plotly toolbar; the Part 4 explorer plot is interactively filterable by the sliders above it.
-- **Files**: `results/differential_expression_results.csv` (Favorable vs Unfavorable), `results/differential_expression_favorable_vs_control.csv`, `results/differential_expression_unfavorable_vs_control.csv`.
-
-<div class="alert-info">
-**Facilitator note.** Suggested break before Module 3: **10 minutes.**
-</div>
-
----
-
 <div class="report-footer">
-Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere · Senior Bioinformatic Researcher · AORN Santobono-Pausilipon
+Generated on `r format(Sys.Date(), '%d %B %Y')` · Francesco Cecere (Senior Bioinformatic Researcher) · Eva Luna Tarallo (Junior Bioinformatic Researcher) · AORN Santobono-Pausilipon IRCCS
 </div>
