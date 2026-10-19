@@ -194,13 +194,63 @@ library(scales)      # axis formatting
 
 This module — **Module 0** — is deliberately the least "computational" and the most conceptual, because in real translational research **the analysis is only as trustworthy as the metadata behind it.** This is especially true in **pediatric rare disease and pediatric oncology**, where cohorts are small by definition, samples are precious and often irreplaceable, and a single mislabeled sample can invalidate months of work. Before touching a single p-value, we need to know: *which sample is which, which samples belong together, and what, exactly, are we comparing?*
 
+**This Module is complemented by the presentation "BBCC_Module0_metadata.pptx" you can find in the corresponding folder.**
+
 **Session plan (≈50 minutes total — this module is the longest, deliberately, since it is also the least technical):** why metadata matters (8 min) → what good metadata looks like (7 min) → biobank basics (5 min) → hands-on: build & debug a mini biobank record (15 min) → plenary debrief (3 min) → closing pediatric lens (2 min) → applying all of this to the real TARGET-WT dataset (10 min).
+
+
+# Intro — Metadata: what are we talking about?
+
+> "Data about data."
+
+**Metadata describe and provide information about our dataset of interest. **
+ They **vary depending on the research context**. They describe the characteristics, origin, conditions, and processing of the data, making datasets easier to interpret, organize, and reuse. 
+
+
+
+|     |   |  |
+|------------------------|---------------------------|------------------------|
+| **Clinical environment**  | Patients clinical data | Anagraphics, diagnosis, comorbidities, therapy, etc |
+| **Laboratory environment**      | Experimental design structure | Animal model/cell line, treatment, condition, replicates, culture condition, etc. |
+| **Environmental research**   | Environmental conditions| Location, temperature, sample type, sample pH, etc. |
+|**Drug development**      | Experimental conditions |Dose, treatment duration, administration route, test subject, etc. |
+
+
+
+
+
+
+Metadata are a key part of every data analysis, but the larger and more complex the dataset, the more essential accurate and complete metadata become. 
+These matters only turn more crucial in a pediatric enviroment, where critical points are several and often hidden.
+
+***Numbers alone are just numbers, context turn them meaningful!***
+
+
 
 # Part 1 — Why Metadata Matters
 
 > Data organization is not bureaucracy — it is what makes any later analysis trustworthy.
 
+
+|                        |                           |
+|------------------------|---------------------------|
+| **PROVIDING CONTEXT** | where, when, how, and under which conditions the data were generated |
+| **IDENTIFYING THE SAMPLE** | Unique identifiers are key in biobanking and sample storage |
+| **ENSURING CORRECT INTERPRETATION** | Same numbers, different meaning upon different age, cell type, tissue, etc. |
+| **ENSURING DATA CONSISTENCY** | Less data cleaning required, easier computational analysis |
+| **SUPPORTING REPRODUCIBILITY** | Same protocol applicable |
+| **ENABLING DATA INTEGRATION** | Multicentric studies are key for rare diseases where samples are few and far apart |
+
+
+Metadata should hold all the information we need to carry out the analyses, but also be easy to manipulate, so machine readable.
+
+Real metadata spreadsheet can be often generated and filled in by clinicians and healthcare workers in a hectic enviroment, so errors may be present, but often hidden!
+
+** 'No computational error' doesn't always mean 'no content error' **. 
+
 The fastest way to feel this, rather than just be told it, is to watch a perfectly ordinary-looking comparison quietly produce nonsense. Below is a tiny, six-patient toy cohort — the kind of table a well-meaning research assistant might type up in an afternoon — comparing an `age_recorded` value between two groups.
+
+## **EXERCISE 1.**
 
 ```{r broken-cohort-data, echo=TRUE}
 # A small, intentionally ordinary-looking toy cohort. Nothing here looks
@@ -276,9 +326,35 @@ At a minimum, a usable biobank/sample record needs to answer: *who, what, when, 
 | **Age at collection** | Needed for almost any biological interpretation — and, as Part 1 showed, needs an explicit, consistent unit. |
 | **Consent status** | Whether the sample can legally and ethically be used for research at all — see Part 3. |
 
+
+### Critical points
+
+<details>
+<summary><strong>Click to reveal the answer key</strong></summary>
+
+| Field | Why it is non-negotiable |
+|-------|---------------------------|
+| **Patient/subject ID** | The single key linking a sample to its clinical context — must be unique, always. |
+| **Sample type** | Tumor tissue, blood, saliva, etc. — determines what analyses are even valid. |
+| **Collection date** | Anchors the sample in time relative to diagnosis, treatment, and the patient's age. |
+| <span style="color:red;">**Diagnosis**</span> | Ideally from a controlled vocabulary, not free text (more on this below). |
+| <span style="color:red;">**Age at collection**</span> | Needed for almost any biological interpretation — and, as Part 1 showed, needs an explicit, consistent unit. |
+| <span style="color:red;">**Consent status**</span> | Whether the sample can legally and ethically be used for research at all — see Part 3. |
+
+
+**Text fields in metadata are always a source of potential error.**
+
+Platform aimed at managing clinical data implement strategies to avoid this variability!
+Age is a calculated field, diagnosis can only be selected between Ontology terms. 
+
+**As a general rule, any text field that can be turned into a multiple choice, is one less source of error.**
+This can be easily done in any spreadsheet when you're building metadata from scratch. 
+
+
+
 ## Standards, Briefly
 
-Two ideas are worth knowing exist, without a deep dive here:
+Two ideas are worth keeping in mind:
 
 - **FAIR principles** — data and metadata should be **F**indable, **A**ccessible, **I**nteroperable, and **R**eusable. In practice, for this tutorial, that mostly means: consistent IDs, documented units, and machine-readable fields rather than prose.
 - **Ontologies**, such as the **Human Phenotype Ontology (HPO)** for clinical phenotypes, give every term a stable, shared identifier (e.g. an HPO code) instead of free text. "Kid kidney tumor" and "pediatric renal neoplasm" are the same thing to a clinician but look like two different diagnoses to a computer — an ontology term fixes that.
@@ -318,6 +394,37 @@ kable(clean_example, caption = "Clean: one column per variable, explicit NA, sta
 
 Nothing was lost going from messy to clean — the *information content* of `s2`/`PT-9002` and `unknown` is identical. What changed is that the clean version can be filtered, joined, counted, and audited by code; the messy version can only be read by a human, one row at a time.
 
+We need to ensure that metadata **include all vital information**, but are also **correctly structured** for computational purpose.
+
+> Building metadata should be a multidisciplinary task!
+
+## How do we decide which fields to include?
+
+There’s no universal metadata set that works for every occasion. **Experimental design** and **study goal** determine what information are vital for your specific case.
+
+To make this process easier, there are some questions worth asking ourselves.
+The most important: ***"If someone else gets access to these data in five or ten years, would they have all the necessary information to analyse and contextualize it?"***
+
+
+
+**Some more ideas:**
+
+|                                |                           |
+|--------------------------------|---------------------------|
+| **What kind of information do we want to extract from the data?** | We need to know what is clinically or biologically relevant for our experimental hypothesis. |
+| **What is the experimental design?** | Do we have multiple batches, how many conditions, which treatment dose, etc. |
+| **Are there confounding elements?** | We need to document any condition or element that could alter or influence the results. |
+| **How many layer of information are there in our design?** | For complex studies, there might be the need to layer metadata and connect them through unique keys (e.g. patient's info, sample info, treatment info, etc.) |
+
+### Difficult datasets
+
+**Pediatric patients**: age is a key layered parameter, we could need to separate infant - toddler - teen, time unit should be decided based on the cohort.
+
+**Rare diseases**: when samples are few, we need as many info as possible to ensure each sample doesn’t get wasted. In a clinical environment, it’s easier to collect more data upfront, since you already have ethical approval for anything you may need later, rather than having to go through the process again.
+
+**Multicentric studies**: when samples are collected from different facilities, metadata should account for possible variability in protocols and conditions. 
+
+
 # Part 3 — Biobank Basics
 
 A biobank is, at its core, a system for keeping **three linked things** in sync for every sample, indefinitely:
@@ -328,13 +435,30 @@ A biobank is, at its core, a system for keeping **three linked things** in sync 
 
 If any one of these three drifts out of sync with the other two — a sample outlives its consent, a clinical update never reaches the biobank record, a sample is used for a purpose broader than what was consented — the biobank has, functionally, failed at its one job, regardless of how well the freezer is organized.
 
+### Critical points
+
+
+- **Pseudonymization**: any database dealing with sensitive data needs a pseudonymization system to ensure patients privacy. It’s also crucial to establish a method that generates unique, reliable keys that can be traced back and do not mix up samples.
+- **Consent forms**: should always be informed, voluntary and revocable. In pediatrics, this matter is more complex and layered. Along with a legal guardian consent, patients can express an age appropriate form of agreement. Many institutions also require re-consent as the child ages and reaches majority, when they can express legally valid consent. 
+
+
 <div class="alert-info">
-**Pediatric consent is not a smaller version of adult consent — it is structurally different.** A child cannot give legally binding consent; a parent or guardian provides it on their behalf, often alongside the child's own **assent** (age-appropriate agreement, even without full legal capacity). Because childhood spans years of rapidly changing capacity to understand and decide, many pediatric biobanks require **re-consent** as the child grows — most concretely, from parental consent toward the now-adult individual's own consent once they reach the age of majority. A sample collected in infancy may need its consent status revisited a decade or more later, which is a governance problem that essentially does not exist in most adult biobanking.
+**Pediatric consent is not a smaller version of adult consent — it is structurally different.**  Because childhood spans years of rapidly changing capacity to understand and decide, many pediatric biobanks require **re-consent** as the child grows — most concretely, from parental consent toward the now-adult individual's own consent once they reach the age of majority. A sample collected in infancy may need its consent status revisited a decade or more later, which is a governance problem that essentially does not exist in most adult biobanking.
 </div>
+
+
+
+> All tracks down to **Sample Eligibility**: samples that lack crucial information are no longer useful. In pediatrics, this could mean hindering years of research. In oncology or rare diseases, patients are few, samples even less, and gaining a small but usable cohort often takes years or the combined effort of multiple facilities. When age so dramatically impacts variability this process gets more difficult.
+
+
 
 # Part 4 — Hands-On: Build & Debug a Mini Biobank Record
 
-**Groups of 3-4, 15 minutes.** Below is a working biobank table for a fictional pediatric cohort (6 rows). Two records are largely blank and need to be completed from short case notes; **each of the remaining rows hides exactly one deliberately seeded error** from a real, common biobank data-quality category. Note that patients are identified only by ID, never by name — that is itself a deliberate, realistic biobanking choice, not an oversight.
+**Groups of 3-4, 15 minutes.**
+
+## **EXERCISE 2.**
+
+ Below is a working biobank table for a fictional pediatric cohort (6 rows). Two records are largely blank and need to be completed from short case notes; **each of the remaining rows hides exactly one deliberately seeded error** from a real, common biobank data-quality category. Note that patients are identified only by ID, never by name — that is itself a deliberate, realistic biobanking choice, not an oversight.
 
 **Task:** as a group, (1) fill in the two incomplete records using the case notes, and (2) find and propose a fix for the error in each of the other four records. You do not need R for this part — read the table and notes, and write down your answers.
 
@@ -390,9 +514,53 @@ Work out your group's answers first. Then expand the section below to compare.
 
 </details>
 
+## **EXERCISE 3.**
+
+**Task:** Here are three experimental designs. Choose at least one and write down, based on what you consider relevant, which metadata fields would you include and how would you structure them.
+
+**Design 1:** comparing treatment vs control using a certain drug, testing on three different cell lines and harvesting after 24, 36, 48 hours.  
+**Design 2:** comparing uninjured skin samples vs burn skin sample in pediatric patients to identify biomarkers and their impact in disease progression.  
+**Design 3:** a multicentric study recruits 200 subjects (100 controls, 100 patients). The goal is to study the association of a specific biomarker with a specific tumor.
+A biological sample is collected from each subject. 
+
+<details>
+<summary><strong>Click to reveal the answer key</strong></summary>
+
+
+**Design 1**
+
+| Sample_id | Cell_line | Group | Treatment | Dose | Timepoint | Replicate | Batch |
+|-----------|-----------|-------|-----------|------|-----------|-----------|-------|
+|           |           |       |           |      |           |           |       |
+
+
+**Design 2**
+
+| Sample_id | Cell_line | Group | Treatment | Dose | Timepoint | Replicate | Batch |
+|-----------|-----------|-------|-----------|------|-----------|-----------|-------|
+|           |           |       |           |      |           |           |       |
+
+**Design 3**
+
+*PATIENT*
+
+| Subject_id | Age | Sex | Group | Diagnosis | Stage | Recruitment_site | Treatment | Survival |
+|------------|-----|-----|-------|-----------|-------|------------------|-----------|----------|
+|            |     |     |       |           |       |                  |           |          |
+
+*SAMPLE*
+
+| Subject_id | Sample_id | Specimen_type | Collection_status | Collection_date | Assay_type | Biomarker |
+|------------|-----------|---------------|-------------------|-----------------|------------|-----------|
+|            |           |               |                   |                 |            |           |
+
+
+</details>
+
+
 ## From Manual Review to Automated Checks
 
-Everything your group just did by eye can — and in a real pipeline, *should* — also be done programmatically, so it runs on every new batch of samples without relying on someone noticing by hand.
+Every check your group just did by eye can — and in a real pipeline, *should* — also be done programmatically, so it runs on every new batch of samples without relying on someone noticing by hand.
 
 ```{r automated-checks, echo=TRUE}
 # 1. Duplicate IDs: any patient_id appearing more than once.
@@ -445,11 +613,11 @@ Every issue in this module gets sharper, not milder, in a pediatric setting:
 
 The fields you just built and debugged by hand — `patient_id`, `age`, `sex`, `diagnosis`, `collection_date`, `consent_status` — are not a teaching artifact. They are the same fields, with the same failure modes, that show up next in a real, public dataset.
 
-# Applying This to a Real Dataset
+# Part 7 - Applying This to a Real Dataset
 
 We now turn to real pediatric cancer data from the NCI's **TARGET** program (via the GDC Data Portal): a gene expression matrix and a separate real clinical sheet for **TARGET-WT** — Wilms tumor, the most common pediatric kidney cancer, sequenced through the Children's Oncology Group's NWTS-5 trial. Unlike a toy exercise, these two files were never designed to be read together by us; joining them correctly, and verifying that join, *is* the metadata task.
 
-# Loading the Raw Expression Matrix
+## Loading the Raw Expression Matrix
 
 The starting point of almost every genomics analysis is a **count matrix**: rows are genes, columns are samples, and cells hold expression values. Here we work with `r "data/TARGET_WT_gene_expression_tpm.csv"` — TPM (transcripts per million) gene expression values for protein-coding genes, downloaded from the GDC Data Portal, project `TARGET-WT`, open-access tier (no controlled-access login required for expression data).
 
@@ -482,7 +650,7 @@ datatable(
 **Verification note.** The gene symbol capitalisation confirms **human (HGNC) nomenclature** — expected, but checked rather than assumed. Values here are continuous (not integer), consistent with **TPM**: each gene's read count already scaled by gene length and by the sample's total library size, which is exactly why no additional per-sample size-factor normalization is needed before comparing samples — a log-transform (used throughout this tutorial) is still applied before any statistical test, but that is the only normalization step needed here.
 </div>
 
-# Joining the Expression Matrix to a Real Clinical Sheet
+## Comparing samples between Expression Matrix and the Real Clinical Sheet
 
 Column headers in the expression matrix are real **case identifiers**, e.g. `TARGET-50-PAKGMU`, and the structure is worth parsing explicitly rather than assumed: `TARGET` (the program), `50` (the disease code assigned to Wilms tumor within TARGET), then a unique case suffix.
 
@@ -515,9 +683,15 @@ datatable(
 )
 ```
 
-## The Join, Verified — Not Assumed
+## Sample IDs, Verified — Not Assumed
 
-This is the central metadata task for this dataset: the expression matrix and the clinical sheet were pulled from GDC independently and must now be joined by `case_submitter_id`. As Part 1 showed with the toy cohort, a join that "runs without error" is not the same as a join that is *correct* — every row must be checked, not just trusted.
+The expression matrix and the clinical sheet were pulled from GDC independently and must now be checked to **ensure perfect correspondence between colnames of the expression matrix and the rows of the metadata spreadsheet (aka samples)**. 
+Here we use 'left_join' to do so. 
+
+Once the match has been confirmed, it's time to toy with the metadata, adding any feature that may be useful.
+In this case, 'age_years' was added to express age in a different unit. 
+If samples are identified by a complex code, the ID can be split up into different columns. Here we could separate IDs into program, disease code and unique case suffix.
+
 
 ```{r join-metadata, echo=TRUE}
 # Join on case_submitter_id and verify no case is silently lost or duplicated
@@ -568,7 +742,7 @@ kable(group_counts, caption = "Number of samples per histologic subtype.")
 **Result.** `r group_counts %>% filter(histologic_subtype == "Favorable") %>% pull(n_samples)` samples are **favorable histology** (the better-prognosis majority of Wilms tumor) and `r group_counts %>% filter(histologic_subtype == "Unfavorable") %>% pull(n_samples)` are **unfavorable/anaplastic histology** — the clinically high-risk subtype. This is a real, clinically meaningful grouping, not a reconstructed proxy label, and it is what Module 2 compares statistically.
 </div>
 
-# Why This Matters for Pediatric Rare Disease and Cancer
+## Why This Matters for Pediatric Rare Disease and Cancer
 
 Everything above — parsing the barcode, checking histology counts, verifying the join — may look like bookkeeping, but it is the step where pediatric bioinformatics projects most often fail silently:
 
@@ -576,7 +750,7 @@ Everything above — parsing the barcode, checking histology counts, verifying t
 - **This metadata exists at all because of a dedicated, multi-institution effort.** The real clinical fields above (histology, age at diagnosis, sex, vital status) exist because the **Children's Oncology Group** ran a coordinated, multi-center trial (NWTS-5) and the NCI's **TARGET** program standardized and released it — exactly the kind of infrastructure Part 3 described as the alternative to reconstructing metadata from filenames after the fact.
 - **Histology-based risk stratification is a real, high-stakes clinical decision in Wilms tumor.** Anaplastic histology drives more intensive treatment in real clinical practice. The favorable/unfavorable grouping used from here on is not an arbitrary analysis choice — it is the same grouping oncologists use to make treatment decisions.
 
-# Exporting Clean Metadata for Downstream Modules
+## Exporting Clean Metadata for Downstream Modules
 
 We save the joined, verified sample sheet so that Modules 1–3 read a single, consistent source of truth rather than re-deriving it independently.
 
