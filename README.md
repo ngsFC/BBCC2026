@@ -12,15 +12,15 @@ The conference program in detail can be looked at https://www.bbcc-meetings.it/b
 
 | Time | Block | Duration |
 |------|-------|----------|
-| 9:00 - 9:30   | Workshop presentation !
-| 9:30 – 10:30  | Module 0 — Metadata & Biobanking
-| 10:30 – 10:45 | Break and Q&A
-| 10:45 – 11:15 | Module 1 — Exploratory Analysis & QC
-| 11:15 – 11:25 | Break and Q&A
-| 11:25 – 12:00 | Module 2 — Diffenretially Expression Analysis
-| 12:00 – 12:10 | Break and Q&A
-| 12:10 – 12:45 | Module 3 — Gene Regulatory Networks
-| 12:45 – 1:00  | Wrap-up
+| 9:00 - 9:30   | Workshop presentation | 30 min |
+| 9:30 – 10:30  | Module 0 — Metadata & Biobanking | 60 min |
+| 10:30 – 10:45 | Break and Q&A | 15 min |
+| 10:45 – 11:15 | Module 1 — Exploratory Analysis & QC | 30 min |
+| 11:15 – 11:25 | Break and Q&A | 10 min |
+| 11:25 – 12:00 | Module 2 — Differential Expression Analysis | 35 min |
+| 12:00 – 12:10 | Break and Q&A | 10 min |
+| 12:10 – 12:45 | Module 3 — Gene Regulatory Networks | 35 min |
+| 12:45 – 1:00  | Wrap-up | 15 min |
 
 ## Data
 
