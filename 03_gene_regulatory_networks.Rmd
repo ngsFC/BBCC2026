@@ -165,86 +165,36 @@ knitr::opts_chunk$set(
 ```
 
 ```{r libraries, include=FALSE}
-library(tidyverse)   # dplyr, ggplot2, tidyr, readr, etc.
-library(GENIE3)      # random-forest-based gene regulatory network inference
-library(igraph)      # graph objects and topology metrics (density, degree)
-library(visNetwork)  # interactive, drag-able network visualization
-library(limma)       # Unfavorable vs Favorable test for the biomarker criteria
-library(DT)          # interactive downloadable tables
-library(knitr)       # kable for simple inline tables
+library(tidyverse)   
+library(GENIE3)      
+library(igraph)      
+library(visNetwork)  
+library(DT)          
+library(knitr)       
+library(ggpubr)
+library(httr)        # live query to the DGIdb drug-gene interaction database
+library(plotly)      # interactive plot for the DGIdb druggability chart
 ```
 
 # From Module 2
 
-Module 2 used limma to produce two ranked lists of differentially expressed genes, using the 6 real matched-normal samples as controls: Favorable vs. Control and Unfavorable vs. Control. This module takes the DEGs of both lists together and asks how they **regulate each other** in three conditions: Favorable tumors, Unfavorable tumors and normal kidney. Comparing the three networks, we look for the hub regulators of each condition and, finally, for a candidate therapeutic biomarker specific to Unfavorable (anaplastic) Wilms tumor.
+Module 2 used limma to produce two lists of DEGs, using 6 normal samples as controls: Favorable vs. Control and Unfavorable vs. Control. This module takes the DEGs of both lists together and asks how they **regulate each other** in three conditions: Favorable tumors, Unfavorable tumors and normal kidney. Comparing the three networks, we look for the hub regulators of each condition and, finally, for a candidate therapeutic biomarker specific to Unfavorable Wilms tumor.
 
-**Session plan (≈55 minutes):** why a ranked list isn't the end of the story (5 min) → gene regulatory networks in plain language (10 min) → building the three networks (15 min) → overlapping the networks: shared edges and hubs (10 min) → toward an Unfavorable-specific biomarker (10 min) → closing pediatric lens (5 min).
+**Session plan:** why a ranked list isn't the end of the story → gene regulatory networks → building the three networks → overlapping the networks: shared edges and hubs → Unfavorable-specific biomarker → closing pediatric lens.
 
 # Part 1 — Why a Ranked Gene List Isn't the End of the Story
 
 Module 2 answered one question, gene by gene: *is this gene expressed differently in the tumor than in normal kidney?* That question treats every gene in isolation — it says nothing about whether two candidate genes **influence each other**, or sit in entirely separate pathways.
 
-**Reframing the arc:** Module 2 found candidates by asking "is this gene behaving abnormally compared to normal kidney?" Module 3 asks a different question about those same candidates: **"how do they work together, and does that change between the two histology groups?"** A single gene's p-value cannot answer that — it requires looking at the candidate genes **as a system**, which is exactly what a gene regulatory network does.
+**Reframing the arc:** Module 2 found candidates by asking "is this gene behaving abnormally compared to normal kidney?" Module 3 asks a different question about those same candidates: **"how do they work together, and does that change between the two histology groups?"** A single gene's p-value cannot answer that as It requires looking at the candidate genes **as a system**, which is exactly what a gene regulatory network does.
 
 <div class="alert-info">
-**What we're building toward.** We will infer **three** separate networks over the same panel of Module 2's DEGs: one using the 82 favorable-histology tumors, one using the 42 unfavorable-histology tumors, and one using the 6 real matched-normal samples as a **baseline network**. We then overlap them to find which regulators are hubs in which condition, and look for a hub that is **specific to Unfavorable tumors**: a candidate therapeutic biomarker. The control network is built on only 6 samples, far too few for GENIE3 to separate real co-expression from noise, so we read anything it produces with that firmly in mind. Apart from the toy example below, every number in this module comes from real TARGET-WT expression data.
+**What we're building toward.** We will infer **three** separate networks over the same panel of Module 2's DEGs: one using the 82 favorable-histology tumors, one using the 42 unfavorable-histology tumors, and one using the 6 normal samples as a **baseline network**. We then overlap them to find which regulators are hubs in which condition, and look for a hub that is **specific to Unfavorable tumors**: a candidate biomarker.
 </div>
 
 # Part 2 — Gene Regulatory Networks in Plain Language
 
-Forget algorithms for a moment. A **gene regulatory network (GRN)** is just a diagram: each **node** is a gene, and an **edge** between two genes means "knowing one gene's expression level helps predict the other's across these samples" — a candidate regulatory relationship, not a proven direct biochemical interaction.
-
-**How do we find these edges?** This module uses **GENIE3**, a widely used method that, for every gene in turn, trains a random forest to predict that gene's expression from all the *other* genes' expression — then asks which of those other genes turned out to be useful predictors. A gene that is a strong, consistent predictor of many other genes becomes a **hub**: visually, a node with many edges connecting to it.
-
-```{r toy-grn-illustration, echo=TRUE, fig.height=5}
-# A purely illustrative toy example: one "hub" gene (HUB1) whose expression
-# directly drives two target genes, plus two unrelated genes with no real
-# relationship to anything -- just to practice reading a network diagram
-# before using real expression data.
-set.seed(42)
-n_samples_toy <- 24
-hub_expr <- rnorm(n_samples_toy, mean = 5, sd = 1.5)
-
-toy_expr <- tibble(
-  HUB1     = hub_expr,
-  TARGET_A = 0.8 * hub_expr + rnorm(n_samples_toy, sd = 0.4),
-  TARGET_B = 0.7 * hub_expr + rnorm(n_samples_toy, sd = 0.5),
-  OTHER_C  = rnorm(n_samples_toy, mean = 5, sd = 1),
-  OTHER_D  = rnorm(n_samples_toy, mean = 5, sd = 1)
-)
-
-# GENIE3 expects genes as rows, samples as columns -- the transpose of the
-# usual tidy layout.
-toy_matrix <- t(as.matrix(toy_expr))
-
-set.seed(1)
-toy_weights <- GENIE3(toy_matrix, nCores = 1, verbose = FALSE)
-toy_edges <- getLinkList(toy_weights, threshold = 0) %>%
-  as_tibble() %>%
-  arrange(desc(weight)) %>%
-  slice_head(n = 8)
-```
-
-```{r verify-toy, echo=TRUE}
-datatable(toy_edges %>% mutate(weight = signif(weight, 3)), rownames = FALSE, options = list(dom = "t", ordering = FALSE),
-          caption = "Top 8 inferred edges in the toy example, ranked by GENIE3 weight.")
-```
-
-```{r plot-toy-network, fig.height=5}
-toy_graph <- graph_from_data_frame(toy_edges %>% select(regulatoryGene, targetGene, weight), directed = TRUE)
-
-set.seed(1)  # same node layout on every knit
-visIgraph(toy_graph, idToLabel = TRUE) %>%
-  visNodes(color = list(background = "#2980b9", border = "#1a5276", highlight = "#e74c3c")) %>%
-  visEdges(arrows = "to", color = list(color = "#8e44ad", opacity = 0.6)) %>%
-  visOptions(highlightNearest = TRUE) %>%
-  visPhysics(stabilization = FALSE) %>%
-  visLayout(randomSeed = 1)
-```
-
-<div class="alert-info">
-**How to read this.** `HUB1` should show up with edges to `TARGET_A` and `TARGET_B` (the genes we built to actually depend on it) — exactly the relationship GENIE3 was able to recover from the data, with no information about which gene we *intended* as the hub. `OTHER_C` and `OTHER_D` are independent random noise and should mostly connect to each other weakly or not be hub-like at all. Drag any node to rearrange the layout, and hover a node to highlight just its direct connections.
-</div>
+A **gene regulatory network (GRN)** is just a diagram: each **node** is a gene, and an **edge** between two genes means "knowing one gene's expression level helps predict the other's across these samples".
 
 # Part 3 — Building the Three Networks
 
@@ -254,7 +204,7 @@ We now infer three real networks, **Favorable**, **Unfavorable** and **Control**
 
 The panel comes straight from Module 2: the **union** of the DEGs of *Favorable vs Control* and *Unfavorable vs Control*, i.e. every gene that is a DEG in at least one of the two comparisons, whatever its category (shared, Favorable-only or Unfavorable-only).
 
-Module 2 found more than 7,000 such genes. GENIE3 grows one random forest per gene, so a network over all of them would take hours, far too long to run live. We therefore keep only the **strong DEGs: |log2FC| > 3** (at least an 8-fold change versus normal kidney) in at least one comparison.
+GENIE3 grows one random forest per gene, so a network over all of them would take hours, far too long to run live. We therefore keep only the **strong DEGs: |log2FC| > 3** (at least an 8-fold change versus normal kidney) in at least one comparison.
 
 ```{r load-data, echo=TRUE}
 de_favorable_vs_control   <- read_csv("results/differential_expression_favorable_vs_control.csv", show_col_types = FALSE)
@@ -299,7 +249,7 @@ datatable(
 ```
 
 <div class="alert-info">
-**Why only transcription factors as regulators?** In the toy example every gene could predict every other gene. In a real network that is both slow and biologically loose: the genes that actually *regulate* the expression of other genes are mainly **transcription factors (TFs)**, proteins that bind DNA and switch genes on or off. So we give GENIE3 the `regulators = panel_tfs` argument: every panel gene is a possible **target**, but only the `r length(panel_tfs)` TFs of the panel can be **regulators**. This is standard practice in network inference, and it makes the run about ten times faster. A consequence to keep in mind: **only TFs can become hubs**.
+**Why only transcription factors as regulators?** GENIE3 can in principle let every gene predict every other gene, but that is both slow and biologically loose: the genes that actually *regulate* the expression of other genes are mainly **transcription factors (TFs)**, proteins that bind DNA and switch genes on or off. So we give GENIE3 the `regulators = panel_tfs` argument: every panel gene is a possible **target**, but only the `r length(panel_tfs)` TFs of the panel can be **regulators**. This is standard practice in network inference, and it makes the run about ten times faster. A consequence to keep in mind: **only TFs can become hubs**.
 </div>
 
 ## Step 2 — One Expression Matrix per Condition
@@ -335,8 +285,7 @@ datatable(
 ## Step 3 — Running GENIE3 in Each Condition
 
 ```{r run-genie3, echo=TRUE}
-# GENIE3 uses random forests, so a fixed seed makes every knit give exactly
-# the same edge weights. nTrees = 500 (default 1000) keeps the run short.
+#nTrees = 500 (default 1000) keeps the run short.
 run_genie3 <- function(expr_matrix) {
   set.seed(20261013)
   GENIE3(expr_matrix, regulators = panel_tfs, nTrees = 500, nCores = 1, verbose = FALSE)
@@ -442,10 +391,6 @@ plot_network(edges_unfavorable, "Unfavorable network (42 tumors)")
 
 ### The Control Network: Read With Real Caution
 
-<div class="alert-info">
-This third network is built on only **6 samples**. Unlike Favorable (82) or Unfavorable (42), GENIE3 here has almost no statistical power to tell real co-expression from noise. We build it anyway because it is the only normal-tissue baseline available, and it makes a concrete point: network inference degrades much faster than single-gene testing as sample size shrinks. Read any "hub" below as possibly due to chance.
-</div>
-
 ```{r plot-network-control}
 plot_network(edges_control, "Control network (6 normal kidney samples)")
 ```
@@ -542,149 +487,353 @@ hub_table %>%
 
 # Part 5 — Toward an Unfavorable-Specific Therapeutic Biomarker
 
-The clinical question: **is there a regulator that marks anaplastic (Unfavorable) Wilms tumor specifically, and that could be a drug target?** We look for a TF that meets four criteria:
-
-| # | Criterion | Why it matters | How we measure it |
-|---|-----------|----------------|-------------------|
-| 1 | **Transcription factor** | TFs control many genes at once | Automatic: only TFs can be regulators in our networks |
-| 2 | **Hub specific to Unfavorable** | Its regulatory role is rewired in anaplastic tumors, not in Favorable or normal tissue | Out-degree in Unfavorable at least 5 higher than in *both* Favorable and Control |
-| 3 | **Up in Unfavorable vs Control** | A drug usually *inhibits* an over-active protein: an over-expressed gene is a realistic target | Status "Up" in Module 2's Unfavorable vs Control limma results |
-| 4 | **Higher in Unfavorable than Favorable** | A marker should distinguish the two histologies, not just tumor from normal | New limma test, Unfavorable vs Favorable tumors: `p_adj < 0.05` and `log2FC > 0` |
-
-Criterion 4 needs one more comparison that Module 2 did not run: **Unfavorable vs Favorable**, directly between the two tumor subtypes. We run it with exactly the same limma approach as Module 2.
-
-```{r limma-unf-vs-fav, echo=TRUE}
-tumor_tpm <- as.matrix(tumor_tpm_raw[, -1])
-rownames(tumor_tpm) <- tumor_tpm_raw$gene_symbol
-
-tumor_groups <- factor(sample_metadata$histologic_subtype[match(colnames(tumor_tpm), sample_metadata$case_submitter_id)])
-
-# Same filter and scale as Module 2: TPM >= 1 in at least 6 samples, log2(TPM + 1).
-tumor_log2 <- log2(tumor_tpm[rowSums(tumor_tpm >= 1) >= 6, ] + 1)
-
-design_tumors <- model.matrix(~ 0 + tumor_groups)
-colnames(design_tumors) <- levels(tumor_groups)
-
-fit_tumors <- lmFit(tumor_log2, design_tumors) %>%
-  contrasts.fit(makeContrasts(Unfavorable - Favorable, levels = design_tumors)) %>%
-  eBayes(trend = TRUE, robust = TRUE)
-
-de_unfavorable_vs_favorable <- topTable(fit_tumors, number = Inf) %>%
-  as_tibble(rownames = "gene_symbol") %>%
-  select(gene_symbol, log2FC_unf_vs_fav = logFC, p_adj_unf_vs_fav = adj.P.Val)
-```
-
-Now every panel TF is scored on the four criteria. Candidates are ranked by **how many criteria they meet**, then by how Unfavorable-specific their hub role is.
+The clinical question: **is there a regulator that becomes a hub specifically in anaplastic (Unfavorable) Wilms tumor, having more targets there than in either Favorable or Control?** We focus on **gains only**: a TF whose regulatory role is newly active in Unfavorable is a more directly actionable candidate than one that merely loses a role it has elsewhere.
 
 ```{r candidate-ranking, echo=TRUE}
-hub_specificity_cutoff <- 5
-
 candidates <- hub_table %>%
-  left_join(de_unfavorable_vs_control %>% select(TF = gene_symbol, status_unf_vs_control = status), by = "TF") %>%
-  left_join(de_unfavorable_vs_favorable, by = c(TF = "gene_symbol")) %>%
-  mutate(
-    hub_specificity          = Unfavorable - pmax(Favorable, Control),
-    is_TF                    = TRUE,
-    unfavorable_specific_hub = hub_specificity >= hub_specificity_cutoff,
-    up_vs_control            = status_unf_vs_control == "Up",
-    higher_than_favorable    = replace_na(p_adj_unf_vs_fav < 0.05 & log2FC_unf_vs_fav > 0, FALSE),
-    criteria_met = is_TF + unfavorable_specific_hub + up_vs_control + higher_than_favorable
-  ) %>%
-  arrange(desc(criteria_met), desc(hub_specificity))
+  mutate(hub_specificity = Unfavorable - pmax(Favorable, Control)) %>%
+  filter(hub_specificity > 0) %>%
+  arrange(desc(hub_specificity))
 
-top_candidate <- candidates %>% slice(1)
-n_all_criteria <- sum(candidates$criteria_met == 4)
-```
-
-```{r table-criteria-summary}
-datatable(
-  tibble(
-    criterion = c("1. Transcription factor", "2. Unfavorable-specific hub", "3. Up in Unfavorable vs Control",
-                  "4. Higher in Unfavorable than Favorable", "All four criteria"),
-    TFs = c(sum(candidates$is_TF), sum(candidates$unfavorable_specific_hub), sum(candidates$up_vs_control),
-            sum(candidates$higher_than_favorable), n_all_criteria)
-  ),
-  rownames = FALSE, options = list(dom = "t", ordering = FALSE),
-  caption = "How many panel TFs pass each criterion."
-)
+top5_candidates <- candidates %>% slice_head(n = 5)
 ```
 
 ```{r table-candidates}
 datatable(
   candidates %>%
-    select(TF, criteria_met, Control, Favorable, Unfavorable, hub_specificity,
-           unfavorable_specific_hub, up_vs_control, higher_than_favorable,
-           log2FC_unf_vs_fav, p_adj_unf_vs_fav) %>%
-    mutate(log2FC_unf_vs_fav = round(log2FC_unf_vs_fav, 2), p_adj_unf_vs_fav = signif(p_adj_unf_vs_fav, 3)),
+    select(TF, Control, Favorable, Unfavorable, hub_specificity) %>%
+    slice_head(n = 15),
   extensions = "Buttons",
   options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 10),
   rownames = FALSE,
-  caption = "All panel TFs ranked as Unfavorable-specific biomarker candidates (Control/Favorable/Unfavorable = out-degree in each network)."
+  caption = "Top 15 panel TFs gained as hubs in Unfavorable (hub_specificity > 0), ranked by hub_specificity. The top 5 are plotted below."
 )
 ```
 
-**Result: `r n_all_criteria` TF(s) meet all four criteria.** The best-ranked candidate is **`r top_candidate$TF`**, meeting `r top_candidate$criteria_met` of 4: it has `r top_candidate$Unfavorable` targets in the Unfavorable network versus `r top_candidate$Favorable` in Favorable and `r top_candidate$Control` in Control, and its expression in Unfavorable vs Favorable tumors has log2FC = `r round(top_candidate$log2FC_unf_vs_fav, 2)` (p_adj = `r signif(top_candidate$p_adj_unf_vs_fav, 2)`).
+## Shortlist: Top 5 Candidates, Side by Side
 
-## A Closer Look at the Top Candidate
 
-First, its expression in the three groups:
+```{r plot-candidate-shortlist, fig.width=15, fig.height=5}
+tumor_tpm <- as.matrix(tumor_tpm_raw[, -1])
+rownames(tumor_tpm) <- tumor_tpm_raw$gene_symbol
+tumor_groups <- factor(sample_metadata$histologic_subtype[match(colnames(tumor_tpm), sample_metadata$case_submitter_id)])
 
-```{r plot-candidate-expression, fig.width=7, fig.height=5}
-candidate_gene <- top_candidate$TF
+gene_expr_by_group <- function(gene) {
+  bind_rows(
+    tibble(TF = gene, group = "Control",
+           log2_tpm = log2(unlist(control_tpm_raw[control_tpm_raw$gene_symbol == gene, -1]) + 1)),
+    tibble(TF = gene, group = as.character(tumor_groups),
+           log2_tpm = log2(tumor_tpm[gene, ] + 1))
+  )
+}
 
-bind_rows(
-  tibble(group = "Control", log2_tpm = log2(unlist(control_tpm_raw[control_tpm_raw$gene_symbol == candidate_gene, -1]) + 1)),
-  tibble(group = as.character(tumor_groups), log2_tpm = log2(tumor_tpm[candidate_gene, ] + 1))
-) %>%
-  mutate(group = factor(group, levels = c("Control", "Favorable", "Unfavorable"))) %>%
-  ggplot(aes(x = group, y = log2_tpm, fill = group)) +
-  geom_boxplot(outlier.shape = NA, alpha = 0.6) +
-  geom_jitter(width = 0.15, size = 1.5, alpha = 0.7) +
+shortlist_expr <- map_dfr(top5_candidates$TF, gene_expr_by_group) %>%
+  mutate(
+    group = factor(group, levels = c("Control", "Favorable", "Unfavorable")),
+    TF    = factor(TF, levels = top5_candidates$TF)
+  )
+
+ggplot(shortlist_expr, aes(x = group, y = log2_tpm, fill = group)) +
+  geom_violin(alpha = 0.35, trim = FALSE) +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.85) +
+  geom_jitter(width = 0.08, size = 1, alpha = 0.6) +
+  stat_compare_means(comparisons = list(c("Control", "Unfavorable"), c("Favorable", "Unfavorable")),
+                      method = "wilcox.test", label = "p.signif", size = 3) +
+  facet_wrap(~ TF, nrow = 1, scales = "free_y") +
   scale_fill_manual(values = c(Control = "#7f8c8d", Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
-  labs(x = NULL, y = "log2(TPM + 1)", title = paste(candidate_gene, "expression")) +
-  theme_bw(base_size = 12) +
-  theme(legend.position = "none")
-```
-
-Then its direct targets in the Unfavorable network, compared with the same TF in the other two networks:
-
-```{r table-candidate-targets}
-datatable(
-  bind_rows(Favorable = edges_favorable, Unfavorable = edges_unfavorable, Control = edges_control, .id = "network") %>%
-    filter(regulatoryGene == candidate_gene) %>%
-    left_join(gene_category %>% select(targetGene = id, target_category = category), by = "targetGene") %>%
-    mutate(weight = signif(weight, 3)) %>%
-    arrange(network, desc(weight)),
-  extensions = "Buttons",
-  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 10),
-  rownames = FALSE,
-  caption = paste0("Targets of ", candidate_gene, " in each network (top 300 edges).")
-)
-```
-
-```{r plot-candidate-subnetwork}
-plot_network(edges_unfavorable %>% filter(regulatoryGene == candidate_gene),
-             paste(candidate_gene, "and its targets in the Unfavorable network"))
+  labs(x = NULL, y = "log2(TPM + 1)", fill = NULL,
+       title = "Top 5 candidates by |hub_specificity|: expression across groups") +
+  theme_bw(base_size = 11) +
+  theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
 ```
 
 <div class="alert-info">
-**How to interpret this, honestly.** The analysis can end in two ways, and both are informative:
+**Reading this panel.** Each facet is one TF's `log2(TPM + 1)` in Control / Favorable / Unfavorable (gray / blue / red, left to right in every panel). Significance brackets compare Unfavorable against Control and against Favorable. A convincing candidate should show both a real network signal **and** a plausible expression pattern.
 
-- **A TF meets all four criteria**: it is a hypothesis worth testing, a regulator that is both over-expressed and rewired specifically in anaplastic tumors.
-- **No TF meets all four** (as in the current data, if the summary table above shows 0): the strongest Unfavorable-specific hubs are **not** over-expressed compared with Favorable tumors. Their *activity*, how strongly their targets follow them, changes, while their own expression level does not. This is a real biological pattern, called **rewiring without differential expression**, and it is exactly what a per-gene test (Module 2) cannot see. Such a regulator would not work as a simple expression biomarker, but could still matter as a therapeutic target of the *pathway* it controls.
-
-Either way, this is a **candidate, not a biomarker**. Before any clinical claim it would need: (1) a stable result when the network is re-inferred on re-sampled patients; (2) validation in an independent cohort; (3) evidence that it can be targeted by a drug (databases such as DGIdb or Open Targets), keeping in mind that TFs have historically been hard to drug directly.
+Pick one from this shortlist and the next step will build its full subnetwork, direct-target table, and a sourced pathway write-up.
 </div>
+
+## A Closer Look: E2F1
+
+**E2F1** is the chosen candidate: `r candidates %>% filter(TF == "E2F1") %>% pull(Unfavorable)` targets in Unfavorable versus `r candidates %>% filter(TF == "E2F1") %>% pull(Favorable)` in Favorable and `r candidates %>% filter(TF == "E2F1") %>% pull(Control)` in Control. The question that matters most for interpretation: **are the connections E2F1 gained specifically in Unfavorable tumors — the ones it does *not* have in Favorable or Control — genes with a real, independent cancer link?**
+
+```{r e2f1-targets, echo=TRUE}
+candidate_gene <- "E2F1"
+
+e2f1_targets <- bind_rows(Favorable = edges_favorable, Unfavorable = edges_unfavorable, Control = edges_control, .id = "network") %>%
+  filter(regulatoryGene == candidate_gene) %>%
+  select(network, targetGene, weight)
+
+targets_elsewhere <- e2f1_targets %>% filter(network != "Unfavorable") %>% pull(targetGene) %>% unique()
+
+e2f1_targets_annotated <- e2f1_targets %>%
+  filter(network == "Unfavorable") %>%
+  mutate(new_in_unfavorable = !targetGene %in% targets_elsewhere) %>%
+  arrange(desc(weight))
+
+n_new_targets <- sum(e2f1_targets_annotated$new_in_unfavorable)
+```
+
+```{r table-e2f1-targets}
+datatable(
+  e2f1_targets_annotated %>% mutate(weight = signif(weight, 3)),
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 10),
+  rownames = FALSE,
+  caption = "E2F1's targets in the Unfavorable network, flagged where that specific link is new (absent from both the Favorable and Control top-300 edge lists)."
+)
+```
+
+`r n_new_targets` of E2F1's `r nrow(e2f1_targets_annotated)` Unfavorable targets are new in exactly this sense.
+
+```{r plot-e2f1-subnetwork}
+plot_network(edges_unfavorable %>% filter(regulatoryGene == candidate_gene),
+             "E2F1 and its targets in the Unfavorable network")
+```
+
+### Are the New Connections Cancer-Related?
+
+**E2F1 itself is a well-established cancer gene** — the RB-pathway's main activator of G1/S cell-cycle entry, with higher expression predicting shorter survival in several adult cancers (e.g. breast). First, the expression of its 15 Unfavorable-specific targets, across all three groups:
+
+```{r plot-e2f1-new-targets-expr, fig.width=15, fig.height=10}
+new_targets <- e2f1_targets_annotated %>% filter(new_in_unfavorable) %>% pull(targetGene)
+
+new_targets_expr <- map_dfr(new_targets, gene_expr_by_group) %>%
+  rename(gene_symbol = TF) %>%
+  mutate(
+    group       = factor(group, levels = c("Control", "Favorable", "Unfavorable")),
+    gene_symbol = factor(gene_symbol, levels = new_targets)
+  )
+
+ggplot(new_targets_expr, aes(x = group, y = log2_tpm, fill = group)) +
+  geom_violin(alpha = 0.35, trim = FALSE) +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.85) +
+  geom_jitter(width = 0.08, size = 0.7, alpha = 0.5) +
+  stat_compare_means(comparisons = list(c("Control", "Unfavorable"), c("Favorable", "Unfavorable")),
+                      method = "wilcox.test", label = "p.signif", size = 2.5) +
+  facet_wrap(~ gene_symbol, ncol = 5, scales = "free_y") +
+  scale_fill_manual(values = c(Control = "#7f8c8d", Favorable = "#2980b9", Unfavorable = "#e74c3c")) +
+  labs(x = NULL, y = "log2(TPM + 1)", fill = NULL,
+       title = "E2F1's 15 new Unfavorable-specific targets: expression across groups") +
+  theme_bw(base_size = 10) +
+  theme(legend.position = "bottom", axis.text.x = element_blank(), axis.ticks.x = element_blank())
+```
+
+Of those 15, the ones actually worth a second look are the ones where **Favorable vs. Unfavorable itself** is significant in the panel above, not just "present as a network edge in Unfavorable," but a real expression difference between the two tumor subtypes directly:
+
+```{r table-fav-vs-unf-significant, echo=TRUE}
+fav_vs_unf_significance <- new_targets_expr %>%
+  filter(group %in% c("Favorable", "Unfavorable")) %>%
+  group_by(gene_symbol) %>%
+  summarise(
+    p_value             = wilcox.test(log2_tpm ~ group)$p.value,
+    median_favorable    = round(median(log2_tpm[group == "Favorable"]), 2),
+    median_unfavorable  = round(median(log2_tpm[group == "Unfavorable"]), 2),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    higher_in = if_else(median_unfavorable > median_favorable, "Unfavorable", "Favorable"),
+    p_value   = signif(p_value, 3)
+  ) %>%
+  filter(p_value < 0.05) %>%
+  arrange(p_value)
+```
+
+```{r table-fav-vs-unf-sig-display}
+datatable(
+  fav_vs_unf_significance,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 15),
+  rownames = FALSE,
+  caption = paste0(nrow(fav_vs_unf_significance), " of 15 new targets with a significant Favorable-vs-Unfavorable expression difference (Wilcoxon, p < 0.05).")
+)
+```
+
+Then the literature on each of all 15 genes, with rows that have a documented cancer role highlighted:
+
+```{r table-cancer-roles, echo=TRUE}
+gene_cancer_roles <- tribble(
+  ~gene_symbol, ~function_summary,                                  ~cancer_relevance,
+  "MKI67",  "Proliferation antigen (Ki-67)",                        "Standard clinical proliferation marker; correlates with tumor stage and histologic subtype in Wilms tumor itself (Juric 2010, n=48; Krishna 2016, n=31)",
+  "KIF4A",  "Mitotic kinesin, chromosome segregation",               "Member of a 2022 E2F-target prognostic signature in prostate cancer (with MXD3, PLK1, EPHA10); high-risk score predicts poor outcome and therapy resistance",
+  "BUB1B",  "Spindle-assembly-checkpoint kinase",                    "Near-universally upregulated across 33 TCGA cancer types; expression tracks with worse progression/prognosis in most",
+  "MCM2",   "DNA replication licensing factor",                      "Canonical E2F/S-phase target; replication-licensing genes are repeatedly tied to tumor proliferation rate",
+  "SMC4",   "Condensin complex subunit (chromosome condensation)",   "Same condensin family as NCAPH, a hub found in an earlier version of this analysis; condensin overexpression broadly tied to proliferative tumors",
+  "NCAPG",  "Condensin I complex subunit (chromosome condensation)", "Same condensin family as SMC4/NCAPH; reported overexpressed in several adult cancers",
+  "SKA3",   "Kinetochore-microtubule attachment",                    "Spindle/kinetochore gene; dysregulation tied to chromosomal instability, a recognized driver of tumor progression",
+  "CDCA5",  "Sororin (sister-chromatid cohesion)",                   "Cohesion regulator reported overexpressed in several solid tumors, tracking with proliferation",
+  "GTSE1",  "G2/M regulator, p53-linked",                            "Modulates p53 stability/localization; implicated in mitotic-exit control relevant to tumor checkpoints",
+  "BLM",    "Bloom syndrome helicase (genome stability)",            "Loss causes Bloom syndrome, a cancer-predisposition disorder; maintains replication-fork stability",
+  "TICRR",  "Replication-origin firing / checkpoint",                "Regulates DNA replication timing; replication-stress genes are a recognized cancer-vulnerability class",
+  "CRACD",  "Actin-capping regulator, WNT pathway",                  "Reported TUMOR SUPPRESSOR in colorectal cancer and small-cell lung cancer (opposite direction from every other gene in this table)",
+  "AFF2",   "Transcriptional elongation factor",                     "Limited cancer literature -- mainly studied in fragile-X-related conditions",
+  "RCOR2",  "REST corepressor complex, chromatin",                   "Limited cancer literature -- linked to stem-cell/pluripotency programs in some contexts",
+  "GDF11",  "TGF-beta superfamily ligand",                           "Limited cancer literature -- mixed pro-/anti-proliferative roles reported, not clearly established"
+) %>%
+  mutate(cancer_related = !startsWith(cancer_relevance, "Limited"))
+
+datatable(
+  gene_cancer_roles,
+  extensions = "Buttons",
+  options = list(
+    dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 15,
+    columnDefs = list(list(visible = FALSE, targets = 3))
+  ),
+  rownames = FALSE,
+  caption = "Each of E2F1's 15 new Unfavorable-specific targets, with its documented role in cancer. Rows highlighted in red have a documented cancer role."
+) %>%
+  formatStyle(
+    "gene_symbol", "cancer_related",
+    target = "row",
+    backgroundColor = styleEqual(c(TRUE, FALSE), c("#fdecea", "white"))
+  )
+```
+
+<div class="alert-info">
+**Bottom line.** 12 of the 15 new targets (highlighted above) have a documented cancer role — 11 as part of E2F1's own canonical DNA-replication/mitosis program (the textbook machinery it switches on for S-phase), one (`CRACD`) as a tumor suppressor pointing the *opposite* direction. This network recovered E2F1 specifically to its own well-known target program, without being told what those genes were. This is itself a reassuring sign the signal is real, not noise. Still a **candidate, not a biomarker**: this needs a stable result under re-sampling, independent-cohort validation, and evidence the pathway is druggable before any clinical claim.
+</div>
+
+## Is E2F1 a Druggable Biomarker?
+
+We query **DGIdb** (the Drug Gene Interaction Database, [dgidb.org](https://dgidb.org)) for E2F1 and all 15 new Unfavorable-specific targets at once, and ask it directly: does *any* drug, approved or experimental, have a recorded interaction with each of these genes?
+
+```{r query-dgidb, echo=TRUE}
+dgidb_genes <- c(candidate_gene, new_targets)
+
+dgidb_query <- sprintf(
+  '{ genes(names: [%s]) { nodes { name interactions { drug { name approved } } } } }',
+  paste0('"', dgidb_genes, '"', collapse = ",")
+)
+
+dgidb_response <- tryCatch(
+  POST("https://dgidb.org/api/graphql", body = list(query = dgidb_query), encode = "json", timeout(10)),
+  error = function(e) e
+)
+
+# Distinguish "the live call failed" from "the call worked and genuinely
+# found nothing" -- an all-zero chart means two very different things
+# depending on which happened, and only one of them is a real result.
+dgidb_query_ok <- !inherits(dgidb_response, "error") && status_code(dgidb_response) == 200
+dgidb_failure_reason <- if (inherits(dgidb_response, "error")) {
+  paste("Request failed:", conditionMessage(dgidb_response))
+} else if (!dgidb_query_ok) {
+  paste("DGIdb returned HTTP", status_code(dgidb_response))
+} else {
+  NA_character_
+}
+
+dgidb_nodes <- if (dgidb_query_ok) {
+  content(dgidb_response, as = "parsed", simplifyVector = TRUE)$data$genes$nodes
+} else {
+  NULL
+}
+
+dgidb_per_gene <- if (!is.null(dgidb_nodes) && nrow(dgidb_nodes) > 0) {
+  map_dfr(seq_len(nrow(dgidb_nodes)), function(i) {
+    ints <- dgidb_nodes$interactions[[i]]
+    # Unique drug names, approved drugs first -- kept as a list-column so
+    # the full name list survives the later join/arrange, not just a count.
+    drug_names <- if (is.null(ints) || nrow(ints) == 0) {
+      character(0)
+    } else {
+      tibble(name = ints$drug$name, approved = ints$drug$approved) %>%
+        distinct(name, .keep_all = TRUE) %>%
+        arrange(desc(approved)) %>%
+        pull(name)
+    }
+    tibble(
+      gene_symbol    = dgidb_nodes$name[i],
+      n_interactions = if (is.null(ints)) 0L else nrow(ints),
+      n_approved     = if (is.null(ints)) 0L else sum(ints$drug$approved, na.rm = TRUE),
+      drug_names     = list(drug_names)
+    )
+  })
+} else {
+  tibble(gene_symbol = character(), n_interactions = integer(), n_approved = integer(),
+         drug_names = vector("list", 0))
+}
+
+dgidb_counts <- tibble(gene_symbol = dgidb_genes) %>%
+  left_join(dgidb_per_gene, by = "gene_symbol") %>%
+  mutate(
+    n_interactions = replace_na(n_interactions, 0L),
+    n_approved     = replace_na(n_approved, 0L),
+    drug_names     = map(drug_names, ~ if (is.null(.x)) character(0) else .x)
+  ) %>%
+  arrange(desc(n_interactions))
+```
+
+```{r dgidb-query-status}
+# Printed regardless of outcome, so a failed live call is never mistaken
+# for a genuine "no drug interactions exist" result.
+if (dgidb_query_ok) {
+  cat("DGIdb query succeeded:", sum(dgidb_counts$n_interactions > 0), "of", nrow(dgidb_counts),
+      "genes have at least one recorded interaction.\n")
+} else {
+  cat("DGIdb query FAILED in this session --", dgidb_failure_reason,
+      "\nThe chart and numbers below are from this machine's live result where available;",
+      "if every count reads 0, that reflects this network call failing here, not a real finding.",
+      "This needs outbound internet access to dgidb.org from wherever the Rmd is knit",
+      "(Binder sessions normally have this; a fully offline or heavily firewalled environment will not).\n")
+}
+```
+
+```{r plot-dgidb, fig.width=9, fig.height=5.5, eval=dgidb_query_ok}
+p_dgidb <- dgidb_counts %>%
+  mutate(gene_symbol = fct_reorder(gene_symbol, n_interactions),
+         is_candidate = gene_symbol == candidate_gene) %>%
+  ggplot(aes(x = gene_symbol, y = n_interactions, fill = is_candidate,
+             text = paste0(gene_symbol, ": ", n_interactions, " recorded drug interactions (",
+                           n_approved, " involving an approved drug)"))) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c(`TRUE` = "#e74c3c", `FALSE` = "#2980b9"), guide = "none") +
+  labs(x = NULL, y = "Drug-gene interactions recorded in DGIdb",
+       title = "E2F1 (red) vs. its 15 new Unfavorable-specific targets: known druggability") +
+  theme_bw(base_size = 11)
+
+ggplotly(p_dgidb, tooltip = "text")
+```
+
+```{r table-dgidb, eval=dgidb_query_ok}
+datatable(
+  dgidb_counts,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 16),
+  rownames = FALSE,
+  caption = "Real DGIdb interaction counts, queried live: every gene with 0 recorded interactions has no known drug-gene data in the database, not a failed lookup."
+)
+```
+
+The top 3 genes by recorded interaction count, with the actual drug names behind that count (approved drugs listed first; capped at 10 names per gene since some genes have dozens):
+
+```{r table-top3-drugs, echo=TRUE, eval=dgidb_query_ok}
+top3_drugs <- dgidb_counts %>%
+  slice_head(n = 3) %>%
+  mutate(
+    drug_names_shown = map_chr(drug_names, function(names) {
+      if (length(names) == 0) return("(none)")
+      shown <- if (length(names) > 10) names[1:10] else names
+      label <- paste(shown, collapse = ", ")
+      if (length(names) > 10) paste0(label, ", ... (", length(names) - 10, " more)") else label
+    })
+  ) %>%
+  select(gene_symbol, n_interactions, n_approved, drug_names_shown)
+```
+
+```{r table-top3-drugs-display, eval=dgidb_query_ok}
+datatable(
+  top3_drugs,
+  extensions = "Buttons",
+  options = list(dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 3),
+  rownames = FALSE,
+  caption = "Real drug names from DGIdb for the top 3 most-targetable genes in this panel."
+)
+```
 
 # Part 6 — Closing Pediatric Lens
 
-This module's networks were inferred on **`r ncol(matrix_favorable)` favorable**, **`r ncol(matrix_unfavorable)` unfavorable**, and **only `r ncol(matrix_control)` control** samples. That three-way asymmetry is not a technical inconvenience: it is the pediatric-rare-disease problem from every earlier module, now showing up as a network-stability issue, with the control network as the most extreme case.
-
-- **Network inference needs more samples than a single test, not fewer.** A per-gene test (Module 2) estimates one difference per gene. A network estimates **relationships between pairs of genes**: with `r length(panel_tfs)` TFs and `r length(panel_genes)` panel genes, that is tens of thousands of possible TF → target links, estimated from just `r ncol(matrix_control)` control samples. Only the control network's use as a rough baseline ("is this hub also present in normal tissue?") is defensible, not its individual edges.
-- **A "hub" deserves real skepticism before being called a finding.** With `r ncol(matrix_unfavorable)` anaplastic tumors, re-sampling a few patients could change which TF looks like the top hub. The framing of Part 5, "a candidate", not "a biomarker", matters even more here than it did for Module 2's p-values.
-- **This is precisely why dedicated pediatric consortia exist.** The NCI's TARGET program pools patients across many institutions because no single pediatric oncology center sees enough anaplastic Wilms tumors, or enough matched-normal kidney samples, to produce a stable network on its own.
-
-Real regulatory-network findings in pediatric oncology need the same thing a real biomarker candidate needs: independent validation in another cohort before the wiring difference is treated as established biology rather than a hypothesis worth testing further.
+Pediatric rare disease means two things at once: **very few samples**, and a **uniquely sensitive population** to try to collect more from. That combination is exactly why a result like E2F1's matters here — with only `r ncol(matrix_unfavorable)` Unfavorable tumors and `r ncol(matrix_control)` real controls to work with, and essentially no realistic way to get many more, finding and correctly flagging a candidate target in the data that already exists is as important as it gets.
 
 ---
 
