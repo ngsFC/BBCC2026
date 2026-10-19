@@ -2,102 +2,36 @@
 
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ngsFC/BBCC2026/HEAD?urlpath=rstudio)
 
-> This tutorial offers a hands-on introduction to how biological and clinical data are organized, analyzed, and turned into clinically meaningful findings. Starting from the organization of metadata and biobanking, participants follow a real pediatric cancer dataset (TARGET-WT, Wilms tumor) through an expression analysis to identify candidate biomarkers, then infer and compare gene regulatory networks between two real clinical histology subgroups. Each module is connected back to rare disease and cancer biology from a pediatric point of view, highlighting what makes them challenging to analyze.
+> A hands-on introduction to organizing biological/clinical data and turning it into clinically meaningful findings. Starting from biobanking metadata, participants follow a real pediatric cancer dataset (TARGET-WT, Wilms tumor) through expression analysis to candidate biomarkers, then infer and compare gene regulatory networks between histology subgroups checking along the way whether any candidate is actually druggable.
 
+**Authors:** Francesco Cecere (Senior Bioinformatic Researcher) · Eva Luna Tarallo (Junior Bioinformatic Researcher) · AORN Santobono-Pausilipon IRCCS
 
+The conference program in detail can be looked at https://www.bbcc-meetings.it/bbcc2026/.
 
-## Launching the Tutorial
-
-Click the **Binder badge** above. It builds a container from this repository (via `.binder/Dockerfile`) and opens **RStudio Server** directly in your browser — no local R installation needed. From RStudio, open any of the four `.Rmd` files and click **Knit** to run it top to bottom.
-
-The first launch can take several minutes while the environment is built; subsequent launches from the same commit are much faster thanks to Binder's build cache.
-
-## Workshop Schedule (beginner-friendly, 4h00 including breaks)
-
-This tutorial is designed to be run live as a **4-hour workshop for R/bioinformatics beginners** (no prior experience with differential expression or survival analysis assumed). Each module is self-paced on Binder, but the timings below are what a facilitator should expect when running it as a group session, breaks included. Each `.Rmd` also carries its own **Session plan** line and a facilitator time-budget note at the end of each Part, so a facilitator can see at a glance whether the group is on pace.
+## Workshop Schedule (21st October 9:00am to 1:00 pm)
 
 | Time | Block | Duration |
 |------|-------|----------|
-| 0:00 – 0:50 | Module 0 — Metadata & Biobanking | 50 min |
-| 0:50 – 1:00 | Break | 10 min |
-| 1:00 – 1:35 | Module 1 — Exploratory Analysis & QC | 35 min |
-| 1:35 – 1:45 | Break | 10 min |
-| 1:45 – 2:45 | Module 2 — Expression Analysis & Biomarker Discovery | 60 min |
-| 2:45 – 2:55 | Break | 10 min |
-| 2:55 – 3:50 | Module 3 — Gene Regulatory Networks | 55 min |
-| 3:50 – 4:00 | Wrap-up & Q&A | 10 min |
-
-## Modules
-
-Run the modules **in order** the first time — each one reads a file produced by the previous one, which is itself part of the lesson (a reproducible pipeline leaves traceable intermediate artifacts instead of hidden in-memory state).
-
-| # | File | Title | What it covers |
-|---|------|-------|-----------------|
-| 0 | `00_metadata_and_biobanking.Rmd` | From Raw Files to a Biobank-Grade Sample Sheet | Loading and verifying the real TARGET-WT expression matrix, joining it to a real GDC clinical sheet by case ID (with the join explicitly verified), parsing the real TARGET barcode structure, and discussing biobanking principles for rare pediatric cohorts. |
-| 1 | `01_exploratory_qc.Rmd` | Exploratory Analysis and Quality Control | TPM-sum sanity checks, expression distributions, PCA, and sample-sample correlation — checking whether the data can be trusted before testing anything. |
-| 2 | `02_differential_expression_biomarkers.Rmd` | Expression Analysis and Candidate Biomarker Discovery | Builds a combined tumor + 6 matched-normal dataset, then runs differential expression with `limma` (log2 TPM, empirical Bayes) for favorable vs. control and unfavorable vs. control: side-by-side volcano plots, clustered `pheatmap` heatmaps of the top DEGs, and an UpSet plot of shared vs. histology-specific DEGs. |
-| 3 | `03_gene_regulatory_networks.Rmd` | From Biomarkers to Gene Regulatory Networks | Takes the union of Module 2's strong DEGs (|log2FC| > 3) and infers a GENIE3 network (transcription factors as regulators) in each of the three conditions — Favorable, Unfavorable and a 6-sample control baseline — then overlaps them (shared edges, hub TFs per condition) and ranks TFs by how much their hub role changes specifically in Unfavorable (gained or lost vs. both other conditions), drilling into the top candidate's expression (with statistics) and regulatory subnetwork. Runs live in about 1–2 minutes. |
-
-Each module knits to a self-contained, interactive `.html` report (downloadable tables, interactive plots). Pre-rendered copies are committed under `html/` so the finished reports can be browsed without running anything — open any file in `html/` directly in a browser. These are a snapshot from the last render: if you edit an `.Rmd` and re-knit, regenerate the matching file in `html/` the same way (see below) so the two stay in sync.
+| 9:00 - 9:30   | Workshop presentation !
+| 9:30 – 10:30  | Module 0 — Metadata & Biobanking
+| 10:30 – 10:45 | Break and Q&A
+| 10:45 – 11:15 | Module 1 — Exploratory Analysis & QC
+| 11:15 – 11:25 | Break and Q&A
+| 11:25 – 12:00 | Module 2 — Diffenretially Expression Analysis
+| 12:00 – 12:10 | Break and Q&A
+| 12:10 – 12:45 | Module 3 — Gene Regulatory Networks
+| 12:45 – 1:00  | Wrap-up
 
 ## Data
 
-- **Source**: **TARGET-WT** (Wilms tumor), from the NCI's TARGET program via the [GDC Data Portal](https://portal.gdc.cancer.gov/projects/TARGET-WT) — real RNA-seq (GDC's STAR-Counts pipeline, TPM-normalized), open-access tier (no login required).
-- `data/TARGET_WT_gene_expression_tpm.csv` — 19,938 protein-coding genes x 124 **tumor** samples (82 **Favorable** / 42 **Unfavorable**/anaplastic histology), from the Children's Oncology Group's NWTS-5 trial.
-- `data/TARGET_WT_clinical_raw.csv` — the real clinical/demographic sheet for those 124 tumor samples (histologic subtype, age at diagnosis, sex, vital status, race, ethnicity).
-- `data/TARGET_WT_control_gene_expression_tpm.csv` / `data/TARGET_WT_control_clinical_raw.csv` — 19,938 genes x **6 real matched-normal ("Solid Tissue Normal") samples**, used in Module 2 as a negative control. This is the entire open-access normal-tissue pool for TARGET-WT (no more exist), and all 6 happen to come from Favorable-histology patients, which is itself discussed in Module 2.
-- `data/human_transcription_factors_Lambert2018.txt` — the curated list of 1,639 human transcription factors from Lambert et al., *The Human Transcription Factors*, Cell 2018 (downloaded from humantfs.ccbr.utoronto.ca, v1.01). Module 3 uses it to restrict network regulators to TFs.
-- All four files were assembled once by `data-prep/build_target_wt_data.R` (manifest query → download each sample's gene-count file → parse `gene_name`/`tpm_unstranded` → join into one matrix) rather than downloaded live during the workshop, so Binder sessions need no GDC-specific setup. That script is not run by the tutorial itself — it is included only so the data can be audited or rebuilt from scratch. `data/sample_metadata.csv` (the join of the two tumor-sample files above, verified) is generated by Module 0; everything under `results/` is generated by Modules 2 and 3 — both are included so later modules can also be explored on their own without re-running earlier ones.
-
-## Repository Structure
-
-```
-.
-├── 00_metadata_and_biobanking.Rmd
-├── 01_exploratory_qc.Rmd
-├── 02_differential_expression_biomarkers.Rmd
-├── 03_gene_regulatory_networks.Rmd
-├── data/
-│   ├── TARGET_WT_gene_expression_tpm.csv             # raw input: real TPM expression matrix, 124 tumor samples
-│   ├── TARGET_WT_clinical_raw.csv                    # raw input: real GDC clinical sheet, 124 tumor samples
-│   ├── TARGET_WT_control_gene_expression_tpm.csv     # raw input: real TPM matrix, 6 matched-normal samples
-│   ├── TARGET_WT_control_clinical_raw.csv            # raw input: real GDC clinical sheet, 6 matched-normal samples
-│   ├── human_transcription_factors_Lambert2018.txt  # 1,639 human TFs (Lambert et al., Cell 2018; humantfs.ccbr.utoronto.ca), used in Module 3
-│   └── sample_metadata.csv                           # produced by Module 0 (verified join of the two tumor-sample files above)
-├── results/
-│   ├── differential_expression_favorable_vs_control.csv          # produced by Module 2
-│   ├── differential_expression_unfavorable_vs_control.csv        # produced by Module 2
-│   ├── gene_network_favorable_edges.csv              # produced by Module 3
-│   ├── gene_network_unfavorable_edges.csv            # produced by Module 3
-│   ├── gene_network_control_edges.csv                # produced by Module 3 (6-sample baseline network)
-│   └── gene_network_hub_comparison.csv               # produced by Module 3
-├── html/
-│   ├── 00_metadata_and_biobanking.html                        # pre-rendered Module 0
-│   ├── 01_exploratory_qc.html                                 # pre-rendered Module 1
-│   ├── 02_differential_expression_biomarkers.html             # pre-rendered Module 2
-│   └── 03_gene_regulatory_networks.html                              # pre-rendered Module 3
-├── data-prep/
-│   └── build_target_wt_data.R                        # one-off script that built data/TARGET_WT_*.csv (not run by the tutorial)
-├── .binder/
-│   └── Dockerfile     # defines the Binder build environment (see below)
-└── README.md
-```
-
-### Regenerating `html/`
-
-Knitting each `.Rmd` with RStudio's **Knit** button (or `rmarkdown::render("00_metadata_and_biobanking.Rmd")`) writes the HTML next to the `.Rmd`, not into `html/`. To regenerate the committed copies in place, from the repository root:
-
-```r
-for (f in c("00_metadata_and_biobanking", "01_exploratory_qc",
-            "02_differential_expression_biomarkers", "03_gene_regulatory_networks")) {
-  rmarkdown::render(paste0(f, ".Rmd"), output_dir = "html")
-}
-```
-
-Modules must be rendered **in order** (0 → 1 → 2 → 3) the first time, since each reads a file the previous one writes (see "Modules" above).
+- **Source**: **TARGET-WT** (Wilms tumor), NCI TARGET program via the [GDC Data Portal](https://portal.gdc.cancer.gov/projects/TARGET-WT) — real RNA-seq (TPM), open-access.
+- `data/TARGET_WT_gene_expression_tpm.csv` / `TARGET_WT_clinical_raw.csv` — 19,938 genes × 124 tumor samples (82 Favorable / 42 Unfavorable) + real clinical sheet.
+- `data/TARGET_WT_control_gene_expression_tpm.csv` / `TARGET_WT_control_clinical_raw.csv` — the same 19,938 genes × the only 6 real matched-normal samples that exist for this project (negative control, Module 2).
+- `data/human_transcription_factors_Lambert2018.txt` — 1,639 curated human TFs (Lambert et al., *Cell* 2018), restricts Module 3's network regulators to real TFs.
+- All built once by `data-prep/build_target_wt_data.R` (not run by the tutorial — included for audit/rebuild). `data/sample_metadata.csv` is Module 0's output; `results/` is Modules 2–3's output.
 
 ## Environment
 
-This repository is built by [repo2docker](https://repo2docker.readthedocs.io/) (the engine behind mybinder.org) from `.binder/Dockerfile`, which starts `FROM rocker/binder:4.4.1` — a base image that already ships RStudio Server correctly configured for Binder's unprivileged container user — and installs the packages required across all four modules (`tidyverse`, `plotly`, `DT`, `igraph`, `visNetwork`, `knitr`, `scales`, `rmarkdown`, `pheatmap`, `ggrepel`, `UpSetR`, `ggpubr`, plus the Bioconductor packages `limma` and `GENIE3` via `BiocManager`) on top of it.
+Built by [repo2docker](https://repo2docker.readthedocs.io/) from `.binder/Dockerfile` (`FROM rocker/binder:4.4.1`), installing `tidyverse`, `plotly`, `DT`, `igraph`, `visNetwork`, `knitr`, `scales`, `rmarkdown`, `pheatmap`, `ggrepel`, `UpSetR`, `ggpubr`, `httr`, plus Bioconductor's `limma` and `GENIE3`.
 
-An earlier version of this repository used repo2docker's own `runtime.txt` / `install.R` R-buildpack convention instead. That path builds RStudio Server through a different mechanism than `rocker/binder`, and on the current mybinder.org infrastructure it produced a broken `/etc/rstudio/rserver.conf` (`www-user=rstudio-server`), which the unprivileged `jovyan` container user has no permission to satisfy — causing every launch to fail with "could not start rstudio in time" / `Attempt to run server as user 'rstudio-server' ... without privilege`. Building from `rocker/binder` directly sidesteps that broken code path entirely, since RStudio is already correctly configured in the base image before this repository's own build steps ever run.
+Module 3 makes one live network call (to [DGIdb](https://dgidb.org), checking drug-gene interactions) that needs normal outbound internet, which a standard Binder session has.
