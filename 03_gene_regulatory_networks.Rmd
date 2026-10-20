@@ -649,50 +649,6 @@ datatable(
 )
 ```
 
-Then the literature on each of all 15 genes, with rows that have a documented cancer role highlighted:
-
-```{r table-cancer-roles, echo=TRUE}
-gene_cancer_roles <- tribble(
-  ~gene_symbol, ~function_summary,                                  ~cancer_relevance,
-  "MKI67",  "Proliferation antigen (Ki-67)",                        "Standard clinical proliferation marker; correlates with tumor stage and histologic subtype in Wilms tumor itself (Juric 2010, n=48; Krishna 2016, n=31)",
-  "KIF4A",  "Mitotic kinesin, chromosome segregation",               "Member of a 2022 E2F-target prognostic signature in prostate cancer (with MXD3, PLK1, EPHA10); high-risk score predicts poor outcome and therapy resistance",
-  "BUB1B",  "Spindle-assembly-checkpoint kinase",                    "Near-universally upregulated across 33 TCGA cancer types; expression tracks with worse progression/prognosis in most",
-  "MCM2",   "DNA replication licensing factor",                      "Canonical E2F/S-phase target; replication-licensing genes are repeatedly tied to tumor proliferation rate",
-  "SMC4",   "Condensin complex subunit (chromosome condensation)",   "Same condensin family as NCAPH, a hub found in an earlier version of this analysis; condensin overexpression broadly tied to proliferative tumors",
-  "NCAPG",  "Condensin I complex subunit (chromosome condensation)", "Same condensin family as SMC4/NCAPH; reported overexpressed in several adult cancers",
-  "SKA3",   "Kinetochore-microtubule attachment",                    "Spindle/kinetochore gene; dysregulation tied to chromosomal instability, a recognized driver of tumor progression",
-  "CDCA5",  "Sororin (sister-chromatid cohesion)",                   "Cohesion regulator reported overexpressed in several solid tumors, tracking with proliferation",
-  "GTSE1",  "G2/M regulator, p53-linked",                            "Modulates p53 stability/localization; implicated in mitotic-exit control relevant to tumor checkpoints",
-  "BLM",    "Bloom syndrome helicase (genome stability)",            "Loss causes Bloom syndrome, a cancer-predisposition disorder; maintains replication-fork stability",
-  "TICRR",  "Replication-origin firing / checkpoint",                "Regulates DNA replication timing; replication-stress genes are a recognized cancer-vulnerability class",
-  "CRACD",  "Actin-capping regulator, WNT pathway",                  "Reported TUMOR SUPPRESSOR in colorectal cancer and small-cell lung cancer (opposite direction from every other gene in this table)",
-  "AFF2",   "Transcriptional elongation factor",                     "Limited cancer literature -- mainly studied in fragile-X-related conditions",
-  "RCOR2",  "REST corepressor complex, chromatin",                   "Limited cancer literature -- linked to stem-cell/pluripotency programs in some contexts",
-  "GDF11",  "TGF-beta superfamily ligand",                           "Limited cancer literature -- mixed pro-/anti-proliferative roles reported, not clearly established"
-) %>%
-  mutate(cancer_related = !startsWith(cancer_relevance, "Limited"))
-
-datatable(
-  gene_cancer_roles,
-  extensions = "Buttons",
-  options = list(
-    dom = "Bfrtip", buttons = c("csv", "excel"), pageLength = 15,
-    columnDefs = list(list(visible = FALSE, targets = 3))
-  ),
-  rownames = FALSE,
-  caption = "Each of E2F1's 15 new Unfavorable-specific targets, with its documented role in cancer. Rows highlighted in red have a documented cancer role."
-) %>%
-  formatStyle(
-    "gene_symbol", "cancer_related",
-    target = "row",
-    backgroundColor = styleEqual(c(TRUE, FALSE), c("#fdecea", "white"))
-  )
-```
-
-<div class="alert-info">
-**Bottom line.** 12 of the 15 new targets (highlighted above) have a documented cancer role — 11 as part of E2F1's own canonical DNA-replication/mitosis program (the textbook machinery it switches on for S-phase), one (`CRACD`) as a tumor suppressor pointing the *opposite* direction. This network recovered E2F1 specifically to its own well-known target program, without being told what those genes were. This is itself a reassuring sign the signal is real, not noise. Still a **candidate, not a biomarker**: this needs a stable result under re-sampling, independent-cohort validation, and evidence the pathway is druggable before any clinical claim.
-</div>
-
 ## Is E2F1 a Druggable Biomarker?
 
 We query **DGIdb** (the Drug Gene Interaction Database, [dgidb.org](https://dgidb.org)) for E2F1 and all 15 new Unfavorable-specific targets at once, and ask it directly: does *any* drug, approved or experimental, have a recorded interaction with each of these genes?

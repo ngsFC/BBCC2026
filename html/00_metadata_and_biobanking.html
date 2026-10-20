@@ -12,6 +12,7 @@
 <meta name="author" content="Francesco Cecere · Senior Bioinformatic Researcher · AORN Santobono-Pausilipon IRCCS" />
 <meta name="author" content="Eva Luna Tarallo · Junior Bioinformatic Researcher · AORN Santobono-Pausilipon IRCCS" />
 
+<meta name="date" content="2026-10-20" />
 
 <title>Module 0 — From Raw Files to a Biobank-Grade Sample Sheet</title>
 
@@ -78084,7 +78085,7 @@ Analysis Begins</h3>
 Bioinformatic Researcher</em> · AORN Santobono-Pausilipon IRCCS</h4>
 <h4 class="author"><strong>Eva Luna Tarallo</strong> · <em>Junior
 Bioinformatic Researcher</em> · AORN Santobono-Pausilipon IRCCS</h4>
-<h4 class="date">18 ottobre 2026</h4>
+<h4 class="date">20 October 2026</h4>
 
 </div>
 
@@ -78312,6 +78313,9 @@ definition, samples are precious and often irreplaceable, and a single
 mislabeled sample can invalidate months of work. Before touching a
 single p-value, we need to know: <em>which sample is which, which
 samples belong together, and what, exactly, are we comparing?</em></p>
+<p><strong>This Module is complemented by the presentation
+“BBCC_Module0_metadata.pptx” you can find in the corresponding
+folder.</strong></p>
 <p><strong>Session plan (≈50 minutes total — this module is the longest,
 deliberately, since it is also the least technical):</strong> why
 metadata matters (8 min) → what good metadata looks like (7 min) →
@@ -78320,17 +78324,109 @@ record (15 min) → plenary debrief (3 min) → closing pediatric lens (2
 min) → applying all of this to the real TARGET-WT dataset (10 min).</p>
 </div>
 </div>
+<div id="intro-metadata-what-are-we-talking-about" class="section level1">
+<h1>Intro — Metadata: what are we talking about?</h1>
+<blockquote>
+<p>“Data about data.”</p>
+</blockquote>
+<p><strong>Metadata describe and provide information about our dataset
+of interest. </strong> They <strong>vary depending on the research
+context</strong>. They describe the characteristics, origin, conditions,
+and processing of the data, making datasets easier to interpret,
+organize, and reuse.</p>
+<table>
+<colgroup>
+<col width="32%" />
+<col width="36%" />
+<col width="32%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td><strong>Clinical environment</strong></td>
+<td>Patients clinical data</td>
+<td>Anagraphics, diagnosis, comorbidities, therapy, etc</td>
+</tr>
+<tr class="even">
+<td><strong>Laboratory environment</strong></td>
+<td>Experimental design structure</td>
+<td>Animal model/cell line, treatment, condition, replicates, culture
+condition, etc.</td>
+</tr>
+<tr class="odd">
+<td><strong>Environmental research</strong></td>
+<td>Environmental conditions</td>
+<td>Location, temperature, sample type, sample pH, etc.</td>
+</tr>
+<tr class="even">
+<td><strong>Drug development</strong></td>
+<td>Experimental conditions</td>
+<td>Dose, treatment duration, administration route, test subject,
+etc.</td>
+</tr>
+</tbody>
+</table>
+<p>Metadata are a key part of every data analysis, but the larger and
+more complex the dataset, the more essential accurate and complete
+metadata become. These matters only turn more crucial in a pediatric
+enviroment, where critical points are several and often hidden.</p>
+<p><strong><em>Numbers alone are just numbers, context turn them
+meaningful!</em></strong></p>
+</div>
 <div id="part-1-why-metadata-matters" class="section level1">
 <h1>Part 1 — Why Metadata Matters</h1>
 <blockquote>
 <p>Data organization is not bureaucracy — it is what makes any later
 analysis trustworthy.</p>
 </blockquote>
+<table>
+<colgroup>
+<col width="47%" />
+<col width="52%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td><strong>PROVIDING CONTEXT</strong></td>
+<td>where, when, how, and under which conditions the data were
+generated</td>
+</tr>
+<tr class="even">
+<td><strong>IDENTIFYING THE SAMPLE</strong></td>
+<td>Unique identifiers are key in biobanking and sample storage</td>
+</tr>
+<tr class="odd">
+<td><strong>ENSURING CORRECT INTERPRETATION</strong></td>
+<td>Same numbers, different meaning upon different age, cell type,
+tissue, etc.</td>
+</tr>
+<tr class="even">
+<td><strong>ENSURING DATA CONSISTENCY</strong></td>
+<td>Less data cleaning required, easier computational analysis</td>
+</tr>
+<tr class="odd">
+<td><strong>SUPPORTING REPRODUCIBILITY</strong></td>
+<td>Same protocol applicable</td>
+</tr>
+<tr class="even">
+<td><strong>ENABLING DATA INTEGRATION</strong></td>
+<td>Multicentric studies are key for rare diseases where samples are few
+and far apart</td>
+</tr>
+</tbody>
+</table>
+<p>Metadata should hold all the information we need to carry out the
+analyses, but also be easy to manipulate, so machine readable.</p>
+<p>Real metadata spreadsheet can be often generated and filled in by
+clinicians and healthcare workers in a hectic enviroment, so errors may
+be present, but often hidden!</p>
+<p>** ‘No computational error’ doesn’t always mean ‘no content error’
+**.</p>
 <p>The fastest way to feel this, rather than just be told it, is to
 watch a perfectly ordinary-looking comparison quietly produce nonsense.
 Below is a tiny, six-patient toy cohort — the kind of table a
 well-meaning research assistant might type up in an afternoon —
 comparing an <code>age_recorded</code> value between two groups.</p>
+<div id="exercise-1." class="section level2">
+<h2><strong>EXERCISE 1.</strong></h2>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="co"># A small, intentionally ordinary-looking toy cohort. Nothing here looks</span></span>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="co"># obviously wrong at a glance.</span></span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a>broken_cohort <span class="ot">&lt;-</span> <span class="fu">tribble</span>(</span>
@@ -78450,8 +78546,8 @@ sex-stratified summary:</p>
 <span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>  ),</span>
 <span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>  <span class="at">rownames =</span> <span class="cn">FALSE</span>, <span class="at">options =</span> <span class="fu">list</span>(<span class="at">dom =</span> <span class="st">&quot;t&quot;</span>, <span class="at">ordering =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>)</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-acbc5ae537a4d7d6ac24" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-acbc5ae537a4d7d6ac24">{"x":{"filter":"none","vertical":false,"data":[["Full cohort","Sex-stratified summary"],[6,4]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>table<\/th>\n      <th>patients<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"className":"dt-right","targets":1},{"name":"table","targets":0},{"name":"patients","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-c1727b5c4efd3fadb313" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-c1727b5c4efd3fadb313">{"x":{"filter":"none","vertical":false,"data":[["Full cohort","Sex-stratified summary"],[6,4]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>table<\/th>\n      <th>patients<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"className":"dt-right","targets":1},{"name":"table","targets":0},{"name":"patients","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 <div class="alert-info">
 <p><strong>The reveal.</strong> One line of ordinary, idiomatic
 tidyverse code (<code>filter(!is.na(sex))</code>) silently dropped
@@ -78468,6 +78564,7 @@ was correct in both cases. The <em>data</em> is what failed, and nothing
 in R’s normal execution flags that failure for you. That is exactly why
 metadata organization is a first-class analytical skill, not paperwork
 that happens before “the real work” begins.</p>
+</div>
 </div>
 <div id="part-2-what-good-metadata-looks-like" class="section level1">
 <h1>Part 2 — What Good Metadata Looks Like</h1>
@@ -78519,10 +78616,71 @@ all — see Part 3.</td>
 </tr>
 </tbody>
 </table>
+<div id="critical-points" class="section level3">
+<h3>Critical points</h3>
+<details>
+<summary>
+<strong>Click to reveal the answer key</strong>
+</summary>
+<table>
+<colgroup>
+<col width="20%" />
+<col width="79%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Why it is non-negotiable</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Patient/subject ID</strong></td>
+<td>The single key linking a sample to its clinical context — must be
+unique, always.</td>
+</tr>
+<tr class="even">
+<td><strong>Sample type</strong></td>
+<td>Tumor tissue, blood, saliva, etc. — determines what analyses are
+even valid.</td>
+</tr>
+<tr class="odd">
+<td><strong>Collection date</strong></td>
+<td>Anchors the sample in time relative to diagnosis, treatment, and the
+patient’s age.</td>
+</tr>
+<tr class="even">
+<td><span style="color:red;"><strong>Diagnosis</strong></span></td>
+<td>Ideally from a controlled vocabulary, not free text (more on this
+below).</td>
+</tr>
+<tr class="odd">
+<td><span style="color:red;"><strong>Age at
+collection</strong></span></td>
+<td>Needed for almost any biological interpretation — and, as Part 1
+showed, needs an explicit, consistent unit.</td>
+</tr>
+<tr class="even">
+<td><span style="color:red;"><strong>Consent status</strong></span></td>
+<td>Whether the sample can legally and ethically be used for research at
+all — see Part 3.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Text fields in metadata are always a source of potential
+error.</strong></p>
+<p>Platform aimed at managing clinical data implement strategies to
+avoid this variability! Age is a calculated field, diagnosis can only be
+selected between Ontology terms.</p>
+<p><strong>As a general rule, any text field that can be turned into a
+multiple choice, is one less source of error.</strong> This can be
+easily done in any spreadsheet when you’re building metadata from
+scratch.</p>
+</div>
 </div>
 <div id="standards-briefly" class="section level2">
 <h2>Standards, Briefly</h2>
-<p>Two ideas are worth knowing exist, without a deep dive here:</p>
+<p>Two ideas are worth keeping in mind:</p>
 <ul>
 <li><strong>FAIR principles</strong> — data and metadata should be
 <strong>F</strong>indable, <strong>A</strong>ccessible,
@@ -78625,6 +78783,68 @@ content</em> of <code>s2</code>/<code>PT-9002</code> and
 <code>unknown</code> is identical. What changed is that the clean
 version can be filtered, joined, counted, and audited by code; the messy
 version can only be read by a human, one row at a time.</p>
+<p>We need to ensure that metadata <strong>include all vital
+information</strong>, but are also <strong>correctly structured</strong>
+for computational purpose.</p>
+<blockquote>
+<p>Building metadata should be a multidisciplinary task!</p>
+</blockquote>
+</div>
+<div id="how-do-we-decide-which-fields-to-include" class="section level2">
+<h2>How do we decide which fields to include?</h2>
+<p>There’s no universal metadata set that works for every occasion.
+<strong>Experimental design</strong> and <strong>study goal</strong>
+determine what information are vital for your specific case.</p>
+<p>To make this process easier, there are some questions worth asking
+ourselves. The most important: <strong><em>“If someone else gets access
+to these data in five or ten years, would they have all the necessary
+information to analyse and contextualize it?”</em></strong></p>
+<p><strong>Some more ideas:</strong></p>
+<table>
+<colgroup>
+<col width="54%" />
+<col width="45%" />
+</colgroup>
+<tbody>
+<tr class="odd">
+<td><strong>What kind of information do we want to extract from the
+data?</strong></td>
+<td>We need to know what is clinically or biologically relevant for our
+experimental hypothesis.</td>
+</tr>
+<tr class="even">
+<td><strong>What is the experimental design?</strong></td>
+<td>Do we have multiple batches, how many conditions, which treatment
+dose, etc.</td>
+</tr>
+<tr class="odd">
+<td><strong>Are there confounding elements?</strong></td>
+<td>We need to document any condition or element that could alter or
+influence the results.</td>
+</tr>
+<tr class="even">
+<td><strong>How many layer of information are there in our
+design?</strong></td>
+<td>For complex studies, there might be the need to layer metadata and
+connect them through unique keys (e.g. patient’s info, sample info,
+treatment info, etc.)</td>
+</tr>
+</tbody>
+</table>
+<div id="difficult-datasets" class="section level3">
+<h3>Difficult datasets</h3>
+<p><strong>Pediatric patients</strong>: age is a key layered parameter,
+we could need to separate infant - toddler - teen, time unit should be
+decided based on the cohort.</p>
+<p><strong>Rare diseases</strong>: when samples are few, we need as many
+info as possible to ensure each sample doesn’t get wasted. In a clinical
+environment, it’s easier to collect more data upfront, since you already
+have ethical approval for anything you may need later, rather than
+having to go through the process again.</p>
+<p><strong>Multicentric studies</strong>: when samples are collected
+from different facilities, metadata should account for possible
+variability in protocols and conditions.</p>
+</div>
 </div>
 </div>
 <div id="part-3-biobank-basics" class="section level1">
@@ -78646,30 +78866,53 @@ sample outlives its consent, a clinical update never reaches the biobank
 record, a sample is used for a purpose broader than what was consented —
 the biobank has, functionally, failed at its one job, regardless of how
 well the freezer is organized.</p>
+<div id="critical-points-1" class="section level3">
+<h3>Critical points</h3>
+<ul>
+<li><strong>Pseudonymization</strong>: any database dealing with
+sensitive data needs a pseudonymization system to ensure patients
+privacy. It’s also crucial to establish a method that generates unique,
+reliable keys that can be traced back and do not mix up samples.</li>
+<li><strong>Consent forms</strong>: should always be informed, voluntary
+and revocable. In pediatrics, this matter is more complex and layered.
+Along with a legal guardian consent, patients can express an age
+appropriate form of agreement. Many institutions also require re-consent
+as the child ages and reaches majority, when they can express legally
+valid consent.</li>
+</ul>
 <div class="alert-info">
 <p><strong>Pediatric consent is not a smaller version of adult consent —
-it is structurally different.</strong> A child cannot give legally
-binding consent; a parent or guardian provides it on their behalf, often
-alongside the child’s own <strong>assent</strong> (age-appropriate
-agreement, even without full legal capacity). Because childhood spans
-years of rapidly changing capacity to understand and decide, many
-pediatric biobanks require <strong>re-consent</strong> as the child
-grows — most concretely, from parental consent toward the now-adult
-individual’s own consent once they reach the age of majority. A sample
-collected in infancy may need its consent status revisited a decade or
-more later, which is a governance problem that essentially does not
-exist in most adult biobanking.</p>
+it is structurally different.</strong> Because childhood spans years of
+rapidly changing capacity to understand and decide, many pediatric
+biobanks require <strong>re-consent</strong> as the child grows — most
+concretely, from parental consent toward the now-adult individual’s own
+consent once they reach the age of majority. A sample collected in
+infancy may need its consent status revisited a decade or more later,
+which is a governance problem that essentially does not exist in most
+adult biobanking.</p>
+</div>
+<blockquote>
+<p>All tracks down to <strong>Sample Eligibility</strong>: samples that
+lack crucial information are no longer useful. In pediatrics, this could
+mean hindering years of research. In oncology or rare diseases, patients
+are few, samples even less, and gaining a small but usable cohort often
+takes years or the combined effort of multiple facilities. When age so
+dramatically impacts variability this process gets more difficult.</p>
+</blockquote>
 </div>
 </div>
 <div id="part-4-hands-on-build-debug-a-mini-biobank-record" class="section level1">
 <h1>Part 4 — Hands-On: Build &amp; Debug a Mini Biobank Record</h1>
-<p><strong>Groups of 3-4, 15 minutes.</strong> Below is a working
-biobank table for a fictional pediatric cohort (6 rows). Two records are
-largely blank and need to be completed from short case notes;
-<strong>each of the remaining rows hides exactly one deliberately seeded
-error</strong> from a real, common biobank data-quality category. Note
-that patients are identified only by ID, never by name — that is itself
-a deliberate, realistic biobanking choice, not an oversight.</p>
+<p><strong>Groups of 3-4, 15 minutes.</strong></p>
+<div id="exercise-2." class="section level2">
+<h2><strong>EXERCISE 2.</strong></h2>
+<p>Below is a working biobank table for a fictional pediatric cohort (6
+rows). Two records are largely blank and need to be completed from short
+case notes; <strong>each of the remaining rows hides exactly one
+deliberately seeded error</strong> from a real, common biobank
+data-quality category. Note that patients are identified only by ID,
+never by name — that is itself a deliberate, realistic biobanking
+choice, not an oversight.</p>
 <p><strong>Task:</strong> as a group, (1) fill in the two incomplete
 records using the case notes, and (2) find and propose a fix for the
 error in each of the other four records. You do not need R for this part
@@ -78687,8 +78930,9 @@ error in each of the other four records. You do not need R for this part
 <span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>  <span class="st">&quot;PT-2035&quot;</span>,   <span class="st">&quot;2022-07-19&quot;</span>,   <span class="dv">2</span>,          <span class="st">&quot;M&quot;</span>,  <span class="st">&quot;Neuroblastoma&quot;</span>,     <span class="st">&quot;2021-12-05&quot;</span>,     <span class="st">&quot;Tumor tissue&quot;</span>, <span class="st">&quot;Consented&quot;</span></span>
 <span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
 <span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">date_of_birth =</span> <span class="fu">as.Date</span>(date_of_birth), <span class="at">collection_date =</span> <span class="fu">as.Date</span>(collection_date))</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-c0cacfad3d4b6af9e753" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-c0cacfad3d4b6af9e753">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>The mini biobank exercise table — 2 records to complete, 4 records each hiding one error.<\/caption>","data":[["PT-2031","PT-2032","PT-2032","PT-2033","PT-2034","PT-2035"],["2024-01-03","2019-11-22","2016-06-30","2023-05-14","2020-02-08","2022-07-19"],[null,null,8,18,5,2],[null,null,"M","F",null,"M"],[null,null,"Ewing sarcoma","Retinoblastoma","Wilms tumor","Neuroblastoma"],[null,null,"2024-09-10","2024-11-02","2025-03-01","2021-12-05"],[null,null,"Tumor tissue","Tumor tissue","Tumor tissue","Tumor tissue"],[null,null,"Consented","Consented","Consented","Consented"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>patient_id<\/th>\n      <th>date_of_birth<\/th>\n      <th>age_years<\/th>\n      <th>sex<\/th>\n      <th>diagnosis<\/th>\n      <th>collection_date<\/th>\n      <th>sample_type<\/th>\n      <th>consent_status<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":10,"columnDefs":[{"className":"dt-right","targets":2},{"name":"patient_id","targets":0},{"name":"date_of_birth","targets":1},{"name":"age_years","targets":2},{"name":"sex","targets":3},{"name":"diagnosis","targets":4},{"name":"collection_date","targets":5},{"name":"sample_type","targets":6},{"name":"consent_status","targets":7}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-b25d3b03227db981ed86" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-b25d3b03227db981ed86">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>The mini biobank exercise table — 2 records to complete, 4 records each hiding one error.<\/caption>","data":[["PT-2031","PT-2032","PT-2032","PT-2033","PT-2034","PT-2035"],["2024-01-03","2019-11-22","2016-06-30","2023-05-14","2020-02-08","2022-07-19"],[null,null,8,18,5,2],[null,null,"M","F",null,"M"],[null,null,"Ewing sarcoma","Retinoblastoma","Wilms tumor","Neuroblastoma"],[null,null,"2024-09-10","2024-11-02","2025-03-01","2021-12-05"],[null,null,"Tumor tissue","Tumor tissue","Tumor tissue","Tumor tissue"],[null,null,"Consented","Consented","Consented","Consented"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>patient_id<\/th>\n      <th>date_of_birth<\/th>\n      <th>age_years<\/th>\n      <th>sex<\/th>\n      <th>diagnosis<\/th>\n      <th>collection_date<\/th>\n      <th>sample_type<\/th>\n      <th>consent_status<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":10,"columnDefs":[{"className":"dt-right","targets":2},{"name":"patient_id","targets":0},{"name":"date_of_birth","targets":1},{"name":"age_years","targets":2},{"name":"sex","targets":3},{"name":"diagnosis","targets":4},{"name":"collection_date","targets":5},{"name":"sample_type","targets":6},{"name":"consent_status","targets":7}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
 <div id="case-notes-for-the-two-incomplete-records" class="section level2">
 <h2>Case Notes (for the two incomplete records)</h2>
 <blockquote>
@@ -78790,9 +79034,179 @@ than silently “correcting” the year.</td>
 </table>
 </details>
 </div>
+<div id="exercise-3." class="section level2">
+<h2><strong>EXERCISE 3.</strong></h2>
+<p><strong>Task:</strong> Here are three experimental designs. Choose at
+least one and write down, based on what you consider relevant, which
+metadata fields would you include and how would you structure them.</p>
+<p><strong>Design 1:</strong> comparing treatment vs control using a
+certain drug, testing on three different cell lines and harvesting after
+24, 36, 48 hours.<br />
+<strong>Design 2:</strong> comparing uninjured skin samples vs burn skin
+sample in pediatric patients to identify biomarkers and their impact in
+disease progression.<br />
+<strong>Design 3:</strong> a multicentric study recruits 200 subjects
+(100 controls, 100 patients). The goal is to study the association of a
+specific biomarker with a specific tumor. A biological sample is
+collected from each subject.</p>
+<details>
+<summary>
+<strong>Click to reveal the answer key</strong>
+</summary>
+<p><strong>Design 1</strong></p>
+<table>
+<colgroup>
+<col width="14%" />
+<col width="14%" />
+<col width="9%" />
+<col width="14%" />
+<col width="8%" />
+<col width="14%" />
+<col width="14%" />
+<col width="9%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Sample_id</th>
+<th>Cell_line</th>
+<th>Group</th>
+<th>Treatment</th>
+<th>Dose</th>
+<th>Timepoint</th>
+<th>Replicate</th>
+<th>Batch</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Design 2</strong></p>
+<table>
+<colgroup>
+<col width="14%" />
+<col width="14%" />
+<col width="9%" />
+<col width="14%" />
+<col width="8%" />
+<col width="14%" />
+<col width="14%" />
+<col width="9%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Sample_id</th>
+<th>Cell_line</th>
+<th>Group</th>
+<th>Treatment</th>
+<th>Dose</th>
+<th>Timepoint</th>
+<th>Replicate</th>
+<th>Batch</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Design 3</strong></p>
+<p><em>PATIENT</em></p>
+<table style="width:100%;">
+<colgroup>
+<col width="13%" />
+<col width="5%" />
+<col width="5%" />
+<col width="8%" />
+<col width="12%" />
+<col width="8%" />
+<col width="20%" />
+<col width="12%" />
+<col width="11%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Subject_id</th>
+<th>Age</th>
+<th>Sex</th>
+<th>Group</th>
+<th>Diagnosis</th>
+<th>Stage</th>
+<th>Recruitment_site</th>
+<th>Treatment</th>
+<th>Survival</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><em>SAMPLE</em></p>
+<table>
+<colgroup>
+<col width="12%" />
+<col width="11%" />
+<col width="15%" />
+<col width="19%" />
+<col width="17%" />
+<col width="12%" />
+<col width="11%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Subject_id</th>
+<th>Sample_id</th>
+<th>Specimen_type</th>
+<th>Collection_status</th>
+<th>Collection_date</th>
+<th>Assay_type</th>
+<th>Biomarker</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</details>
+</div>
 <div id="from-manual-review-to-automated-checks" class="section level2">
 <h2>From Manual Review to Automated Checks</h2>
-<p>Everything your group just did by eye can — and in a real pipeline,
+<p>Every check your group just did by eye can — and in a real pipeline,
 <em>should</em> — also be done programmatically, so it runs on every new
 batch of samples without relying on someone noticing by hand.</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># 1. Duplicate IDs: any patient_id appearing more than once.</span></span>
@@ -78809,8 +79223,8 @@ batch of samples without relying on someone noticing by hand.</p>
 <span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a></span>
 <span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co"># 4. Missing sex.</span></span>
 <span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a>missing_sex <span class="ot">&lt;-</span> mini_biobank_messy <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="fu">is.na</span>(sex))</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-22d24fc52d810292852d" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-22d24fc52d810292852d">{"x":{"filter":"none","vertical":false,"caption":"<caption>Records flagged by each automated check.<\/caption>","data":[["Duplicate patient_id","Collection date before birth","Implausible age (&gt;17 years)","Missing sex"],["PT-2032","PT-2035","PT-2033","PT-2031, PT-2032, PT-2034"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>check<\/th>\n      <th>records<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"name":"check","targets":0},{"name":"records","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-0b761601252a3d009cdb" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-0b761601252a3d009cdb">{"x":{"filter":"none","vertical":false,"caption":"<caption>Records flagged by each automated check.<\/caption>","data":[["Duplicate patient_id","Collection date before birth","Implausible age (&gt;17 years)","Missing sex"],["PT-2032","PT-2035","PT-2033","PT-2031, PT-2032, PT-2034"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>check<\/th>\n      <th>records<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"name":"check","targets":0},{"name":"records","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 <p>Every single seeded error from the answer key above is caught by
 three short <code>dplyr</code> filters — no custom function required.
 This is the real argument for structured metadata: it is not just easier
@@ -78862,8 +79276,8 @@ typed “age in years” cannot be un-rounded.</li>
 same fields, with the same failure modes, that show up next in a real,
 public dataset.</p>
 </div>
-<div id="applying-this-to-a-real-dataset" class="section level1">
-<h1>Applying This to a Real Dataset</h1>
+<div id="part-7---applying-this-to-a-real-dataset" class="section level1">
+<h1>Part 7 - Applying This to a Real Dataset</h1>
 <p>We now turn to real pediatric cancer data from the NCI’s
 <strong>TARGET</strong> program (via the GDC Data Portal): a gene
 expression matrix and a separate real clinical sheet for
@@ -78872,9 +79286,8 @@ kidney cancer, sequenced through the Children’s Oncology Group’s NWTS-5
 trial. Unlike a toy exercise, these two files were never designed to be
 read together by us; joining them correctly, and verifying that join,
 <em>is</em> the metadata task.</p>
-</div>
-<div id="loading-the-raw-expression-matrix" class="section level1">
-<h1>Loading the Raw Expression Matrix</h1>
+<div id="loading-the-raw-expression-matrix" class="section level2">
+<h2>Loading the Raw Expression Matrix</h2>
 <p>The starting point of almost every genomics analysis is a
 <strong>count matrix</strong>: rows are genes, columns are samples, and
 cells hold expression values. Here we work with
@@ -78889,8 +79302,8 @@ controlled-access login required for expression data).</p>
 <span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="at">show_col_types =</span> <span class="cn">FALSE</span></span>
 <span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>) <span class="sc">%&gt;%</span></span>
 <span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">gene_symbol =</span> gene_name)</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-2c35c13a412ef512711c" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-2c35c13a412ef512711c">{"x":{"filter":"none","vertical":false,"caption":"<caption>Basic properties of the expression matrix.<\/caption>","data":[["Genes (rows)","Samples (columns)","Duplicated gene symbols","Missing values","Human-style 'TP53' present","Mouse-style 'Tp53' present"],[19938,124,0,0,1,0]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>property<\/th>\n      <th>value<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"className":"dt-right","targets":1},{"name":"property","targets":0},{"name":"value","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-839d335586c64a5d8a25" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-839d335586c64a5d8a25">{"x":{"filter":"none","vertical":false,"caption":"<caption>Basic properties of the expression matrix.<\/caption>","data":[["Genes (rows)","Samples (columns)","Duplicated gene symbols","Missing values","Human-style 'TP53' present","Mouse-style 'Tp53' present"],[19938,124,0,0,1,0]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>property<\/th>\n      <th>value<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"className":"dt-right","targets":1},{"name":"property","targets":0},{"name":"value","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 <div class="alert-info">
 <p><strong>Verification note.</strong> The gene symbol capitalisation
 confirms <strong>human (HGNC) nomenclature</strong> — expected, but
@@ -78903,8 +79316,9 @@ tutorial) is still applied before any statistical test, but that is the
 only normalization step needed here.</p>
 </div>
 </div>
-<div id="joining-the-expression-matrix-to-a-real-clinical-sheet" class="section level1">
-<h1>Joining the Expression Matrix to a Real Clinical Sheet</h1>
+<div id="comparing-samples-between-expression-matrix-and-the-real-clinical-sheet" class="section level2">
+<h2>Comparing samples between Expression Matrix and the Real Clinical
+Sheet</h2>
 <p>Column headers in the expression matrix are real <strong>case
 identifiers</strong>, e.g. <code>TARGET-50-PAKGMU</code>, and the
 structure is worth parsing explicitly rather than assumed:
@@ -78919,8 +79333,8 @@ assigned to Wilms tumor within TARGET), then a unique case suffix.</p>
 <span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a></span>
 <span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="fu">datatable</span>(<span class="fu">count</span>(barcode_check, disease_code, <span class="at">name =</span> <span class="st">&quot;n_samples&quot;</span>), <span class="at">rownames =</span> <span class="cn">FALSE</span>, <span class="at">options =</span> <span class="fu">list</span>(<span class="at">dom =</span> <span class="st">&quot;t&quot;</span>, <span class="at">ordering =</span> <span class="cn">FALSE</span>),</span>
 <span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>          <span class="at">caption =</span> <span class="st">&quot;Disease codes found in the column names.&quot;</span>)</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-83d08843aba4e2f4fbce" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-83d08843aba4e2f4fbce">{"x":{"filter":"none","vertical":false,"caption":"<caption>Disease codes found in the column names.<\/caption>","data":[["50"],[124]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>disease_code<\/th>\n      <th>n_samples<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"className":"dt-right","targets":1},{"name":"disease_code","targets":0},{"name":"n_samples","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-fe80300d33e85fe02cc0" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-fe80300d33e85fe02cc0">{"x":{"filter":"none","vertical":false,"caption":"<caption>Disease codes found in the column names.<\/caption>","data":[["50"],[124]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>disease_code<\/th>\n      <th>n_samples<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"className":"dt-right","targets":1},{"name":"disease_code","targets":0},{"name":"n_samples","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 <p>The disease code confirms every column belongs to the same cohort — a
 cheap, worthwhile check before anything else. What the barcode does
 <strong>not</strong> tell us is histology, age, sex, or outcome: for
@@ -78928,16 +79342,22 @@ that we need the separate clinical file GDC ships alongside the
 expression data, data/TARGET_WT_clinical_raw.csv.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># The real clinical/demographic sheet for the same cohort, from the GDC API.</span></span>
 <span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>clinical_raw <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(<span class="st">&quot;data/TARGET_WT_clinical_raw.csv&quot;</span>, <span class="at">show_col_types =</span> <span class="cn">FALSE</span>)</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-45359187c9ca49e51de6" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-45359187c9ca49e51de6">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>The real clinical/demographic fields GDC ships for TARGET-WT.<\/caption>","data":[["TARGET-50-PAKGMU","TARGET-50-PAKRCC","TARGET-50-PAJNNC","TARGET-50-PAJNLT","TARGET-50-PAKJGM","TARGET-50-PAJLNJ","TARGET-50-PAKGED","TARGET-50-PAJMFU","TARGET-50-PAJLPX","TARGET-50-CAAAAC","TARGET-50-PAJMEP","TARGET-50-PAJMEL","TARGET-50-PALFRD","TARGET-50-PAKVET","TARGET-50-PAKZFK","TARGET-50-PALKCW","TARGET-50-PAJNSL","TARGET-50-PAKXXF","TARGET-50-PAKYFC","TARGET-50-PAJNAV","TARGET-50-PAJNUP","TARGET-50-PAJNVE","TARGET-50-PAJNVX","TARGET-50-PAJMEN","TARGET-50-PAKKSE","TARGET-50-PALGVY","TARGET-50-PAKKNS","TARGET-50-PALDWP","TARGET-50-PALDTE","TARGET-50-PALLFB","TARGET-50-CAAAAJ","TARGET-50-PAJMMY","TARGET-50-PAKFME","TARGET-50-PAJLTH","TARGET-50-PAJNEC","TARGET-50-PAJNJJ","TARGET-50-PAJLLF","TARGET-50-PAKGZX","TARGET-50-PAJNGH","TARGET-50-PAJMKN","TARGET-50-PAKFYV","TARGET-50-PAJMIZ","TARGET-50-PAJNCC","TARGET-50-PAJMFY","TARGET-50-CAAAAO","TARGET-50-PAKYLT","TARGET-50-PAKZER","TARGET-50-PAJLKR","TARGET-50-PAKRZW","TARGET-50-PAJLKC","TARGET-50-PAKNRX","TARGET-50-PAKNAL","TARGET-50-PAKRVH","TARGET-50-PAJMLI","TARGET-50-CAAAAS","TARGET-50-CAAAAR","TARGET-50-PAJPDC","TARGET-50-PAJMRL","TARGET-50-PADXAY","TARGET-50-PALGAZ","TARGET-50-PAJNZK","TARGET-50-PAJPDN","TARGET-50-PAJMXF","TARGET-50-PAJMKI","TARGET-50-PAJNYT","TARGET-50-CAAAAM","TARGET-50-PAJNRH","TARGET-50-PALJIP","TARGET-50-PAKECR","TARGET-50-PALKRS","TARGET-50-PAKWPM","TARGET-50-PAKXWB","TARGET-50-PAJNAA","TARGET-50-PAJPCM","TARGET-50-PAJMSE","TARGET-50-PAEBXA","TARGET-50-PAJMLZ","TARGET-50-PAJNZU","TARGET-50-PAJNZS","TARGET-50-PAJNZI","TARGET-50-PAJLTI","TARGET-50-PAJPGY","TARGET-50-PAJNDU","TARGET-50-PAJLWT","TARGET-50-PAJPHA","TARGET-50-PAJNCZ","TARGET-50-PAJLSP","TARGET-50-PAJMKJ","TARGET-50-CAAAAH","TARGET-50-PAJLIP","TARGET-50-CAAAAP","TARGET-50-PAKSCC","TARGET-50-PAKMUB","TARGET-50-PAKSDG","TARGET-50-PAKUIT","TARGET-50-PALFME","TARGET-50-PAKNXS","TARGET-50-PAKNTW","TARGET-50-CAAAAL","TARGET-50-PAKPDF","TARGET-50-PAJNUS","TARGET-50-PAJMUF","TARGET-50-PAJNBN","TARGET-50-PAJNCJ","TARGET-50-PALEZT","TARGET-50-PAEAFB","TARGET-50-PALERC","TARGET-50-PAJMJT","TARGET-50-CAAAAB","TARGET-50-PAECJB","TARGET-50-PAJNNR","TARGET-50-PAKULH","TARGET-50-PAKZHF","TARGET-50-PAKMSV","TARGET-50-PAJNRL","TARGET-50-PAJNTJ","TARGET-50-CAAAAQ","TARGET-50-PAJMVU","TARGET-50-PALGLU","TARGET-50-PAJMVC","TARGET-50-PADZUB","TARGET-50-PAJPAU","TARGET-50-PAJPAR","TARGET-50-PAJPEW"],["Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable"],[1121,1466,281,1546,1007,325,2809,1348,2702,2244,670,1336,1785,405,1340,1895,160,1821,1069,1449,2201,800,1365,1508,847,1182,547,2104,979,2879,401,1953,1713,2819,1474,5698,2423,2201,851,521,1246,2488,797,1868,1326,2307,2271,2247,2238,2464,1785,2070,2728,1342,2476,314,2904,1685,1958,222,1532,1112,1650,2168,768,2750,1340,1789,1102,2003,1914,2681,3327,1754,1681,1192,1324,970,1789,2842,961,2122,2360,1262,1124,581,706,276,1710,3037,824,691,2412,1002,1236,3703,1245,4779,1599,1912,887,829,1509,1762,4397,490,156,1921,1757,807,2265,1030,1309,1968,1476,707,1287,1638,1275,1548,5557,1389,1950,5082],["female","male","male","female","male","female","female","female","male","female","male","female","female","female","female","male","female","male","female","male","female","female","male","female","female","female","male","male","male","male","female","male","female","male","female","female","female","male","male","female","female","female","male","female","female","female","female","female","female","female","male","female","male","male","female","female","female","male","male","female","female","female","male","male","male","female","female","female","female","male","male","female","female","female","female","female","male","female","female","female","male","female","male","male","male","male","male","female","female","female","male","male","male","male","female","male","male","male","female","female","male","male","male","female","female","male","female","female","female","female","male","female","male","male","male","male","female","female","female","male","female","male","female","male"],["Alive","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Dead","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Alive","Dead","Dead","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive"],["white","white","not reported","black or african american","white","white","white","not reported","black or african american","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","not reported","white","white","white","black or african american","white","black or african american","white","not reported","white","white","white","white","white","white","white","white","black or african american","white","not reported","other","black or african american","white","white","white","black or african american","white","white","white","white","other","white","white","black or african american","white","white","white","white","white","black or african american","not reported","white","white","white","black or african american","white","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","black or african american","black or african american","black or african american","white","white","not reported","white","white","white","white","white","white","white","white","white","white","black or african american","other","not reported","black or african american","white","black or african american","white","white","black or african american","white"],["not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","hispanic or latino","not reported","not reported","not hispanic or latino","not reported","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>case_submitter_id<\/th>\n      <th>histologic_subtype<\/th>\n      <th>age_at_diagnosis_days<\/th>\n      <th>sex_at_birth<\/th>\n      <th>vital_status<\/th>\n      <th>race<\/th>\n      <th>ethnicity<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":10,"columnDefs":[{"className":"dt-right","targets":2},{"name":"case_submitter_id","targets":0},{"name":"histologic_subtype","targets":1},{"name":"age_at_diagnosis_days","targets":2},{"name":"sex_at_birth","targets":3},{"name":"vital_status","targets":4},{"name":"race","targets":5},{"name":"ethnicity","targets":6}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
-<div id="the-join-verified-not-assumed" class="section level2">
-<h2>The Join, Verified — Not Assumed</h2>
-<p>This is the central metadata task for this dataset: the expression
-matrix and the clinical sheet were pulled from GDC independently and
-must now be joined by <code>case_submitter_id</code>. As Part 1 showed
-with the toy cohort, a join that “runs without error” is not the same as
-a join that is <em>correct</em> — every row must be checked, not just
-trusted.</p>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-5a664fb84d5f58d6336a" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-5a664fb84d5f58d6336a">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>The real clinical/demographic fields GDC ships for TARGET-WT.<\/caption>","data":[["TARGET-50-PAKGMU","TARGET-50-PAKRCC","TARGET-50-PAJNNC","TARGET-50-PAJNLT","TARGET-50-PAKJGM","TARGET-50-PAJLNJ","TARGET-50-PAKGED","TARGET-50-PAJMFU","TARGET-50-PAJLPX","TARGET-50-CAAAAC","TARGET-50-PAJMEP","TARGET-50-PAJMEL","TARGET-50-PALFRD","TARGET-50-PAKVET","TARGET-50-PAKZFK","TARGET-50-PALKCW","TARGET-50-PAJNSL","TARGET-50-PAKXXF","TARGET-50-PAKYFC","TARGET-50-PAJNAV","TARGET-50-PAJNUP","TARGET-50-PAJNVE","TARGET-50-PAJNVX","TARGET-50-PAJMEN","TARGET-50-PAKKSE","TARGET-50-PALGVY","TARGET-50-PAKKNS","TARGET-50-PALDWP","TARGET-50-PALDTE","TARGET-50-PALLFB","TARGET-50-CAAAAJ","TARGET-50-PAJMMY","TARGET-50-PAKFME","TARGET-50-PAJLTH","TARGET-50-PAJNEC","TARGET-50-PAJNJJ","TARGET-50-PAJLLF","TARGET-50-PAKGZX","TARGET-50-PAJNGH","TARGET-50-PAJMKN","TARGET-50-PAKFYV","TARGET-50-PAJMIZ","TARGET-50-PAJNCC","TARGET-50-PAJMFY","TARGET-50-CAAAAO","TARGET-50-PAKYLT","TARGET-50-PAKZER","TARGET-50-PAJLKR","TARGET-50-PAKRZW","TARGET-50-PAJLKC","TARGET-50-PAKNRX","TARGET-50-PAKNAL","TARGET-50-PAKRVH","TARGET-50-PAJMLI","TARGET-50-CAAAAS","TARGET-50-CAAAAR","TARGET-50-PAJPDC","TARGET-50-PAJMRL","TARGET-50-PADXAY","TARGET-50-PALGAZ","TARGET-50-PAJNZK","TARGET-50-PAJPDN","TARGET-50-PAJMXF","TARGET-50-PAJMKI","TARGET-50-PAJNYT","TARGET-50-CAAAAM","TARGET-50-PAJNRH","TARGET-50-PALJIP","TARGET-50-PAKECR","TARGET-50-PALKRS","TARGET-50-PAKWPM","TARGET-50-PAKXWB","TARGET-50-PAJNAA","TARGET-50-PAJPCM","TARGET-50-PAJMSE","TARGET-50-PAEBXA","TARGET-50-PAJMLZ","TARGET-50-PAJNZU","TARGET-50-PAJNZS","TARGET-50-PAJNZI","TARGET-50-PAJLTI","TARGET-50-PAJPGY","TARGET-50-PAJNDU","TARGET-50-PAJLWT","TARGET-50-PAJPHA","TARGET-50-PAJNCZ","TARGET-50-PAJLSP","TARGET-50-PAJMKJ","TARGET-50-CAAAAH","TARGET-50-PAJLIP","TARGET-50-CAAAAP","TARGET-50-PAKSCC","TARGET-50-PAKMUB","TARGET-50-PAKSDG","TARGET-50-PAKUIT","TARGET-50-PALFME","TARGET-50-PAKNXS","TARGET-50-PAKNTW","TARGET-50-CAAAAL","TARGET-50-PAKPDF","TARGET-50-PAJNUS","TARGET-50-PAJMUF","TARGET-50-PAJNBN","TARGET-50-PAJNCJ","TARGET-50-PALEZT","TARGET-50-PAEAFB","TARGET-50-PALERC","TARGET-50-PAJMJT","TARGET-50-CAAAAB","TARGET-50-PAECJB","TARGET-50-PAJNNR","TARGET-50-PAKULH","TARGET-50-PAKZHF","TARGET-50-PAKMSV","TARGET-50-PAJNRL","TARGET-50-PAJNTJ","TARGET-50-CAAAAQ","TARGET-50-PAJMVU","TARGET-50-PALGLU","TARGET-50-PAJMVC","TARGET-50-PADZUB","TARGET-50-PAJPAU","TARGET-50-PAJPAR","TARGET-50-PAJPEW"],["Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable"],[1121,1466,281,1546,1007,325,2809,1348,2702,2244,670,1336,1785,405,1340,1895,160,1821,1069,1449,2201,800,1365,1508,847,1182,547,2104,979,2879,401,1953,1713,2819,1474,5698,2423,2201,851,521,1246,2488,797,1868,1326,2307,2271,2247,2238,2464,1785,2070,2728,1342,2476,314,2904,1685,1958,222,1532,1112,1650,2168,768,2750,1340,1789,1102,2003,1914,2681,3327,1754,1681,1192,1324,970,1789,2842,961,2122,2360,1262,1124,581,706,276,1710,3037,824,691,2412,1002,1236,3703,1245,4779,1599,1912,887,829,1509,1762,4397,490,156,1921,1757,807,2265,1030,1309,1968,1476,707,1287,1638,1275,1548,5557,1389,1950,5082],["female","male","male","female","male","female","female","female","male","female","male","female","female","female","female","male","female","male","female","male","female","female","male","female","female","female","male","male","male","male","female","male","female","male","female","female","female","male","male","female","female","female","male","female","female","female","female","female","female","female","male","female","male","male","female","female","female","male","male","female","female","female","male","male","male","female","female","female","female","male","male","female","female","female","female","female","male","female","female","female","male","female","male","male","male","male","male","female","female","female","male","male","male","male","female","male","male","male","female","female","male","male","male","female","female","male","female","female","female","female","male","female","male","male","male","male","female","female","female","male","female","male","female","male"],["Alive","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Dead","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Alive","Dead","Dead","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive"],["white","white","not reported","black or african american","white","white","white","not reported","black or african american","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","not reported","white","white","white","black or african american","white","black or african american","white","not reported","white","white","white","white","white","white","white","white","black or african american","white","not reported","other","black or african american","white","white","white","black or african american","white","white","white","white","other","white","white","black or african american","white","white","white","white","white","black or african american","not reported","white","white","white","black or african american","white","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","black or african american","black or african american","black or african american","white","white","not reported","white","white","white","white","white","white","white","white","white","white","black or african american","other","not reported","black or african american","white","black or african american","white","white","black or african american","white"],["not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","hispanic or latino","not reported","not reported","not hispanic or latino","not reported","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino"]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>case_submitter_id<\/th>\n      <th>histologic_subtype<\/th>\n      <th>age_at_diagnosis_days<\/th>\n      <th>sex_at_birth<\/th>\n      <th>vital_status<\/th>\n      <th>race<\/th>\n      <th>ethnicity<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":10,"columnDefs":[{"className":"dt-right","targets":2},{"name":"case_submitter_id","targets":0},{"name":"histologic_subtype","targets":1},{"name":"age_at_diagnosis_days","targets":2},{"name":"sex_at_birth","targets":3},{"name":"vital_status","targets":4},{"name":"race","targets":5},{"name":"ethnicity","targets":6}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+</div>
+<div id="sample-ids-verified-not-assumed" class="section level2">
+<h2>Sample IDs, Verified — Not Assumed</h2>
+<p>The expression matrix and the clinical sheet were pulled from GDC
+independently and must now be checked to <strong>ensure perfect
+correspondence between colnames of the expression matrix and the rows of
+the metadata spreadsheet (aka samples)</strong>. Here we use ‘left_join’
+to do so.</p>
+<p>Once the match has been confirmed, it’s time to toy with the
+metadata, adding any feature that may be useful. In this case,
+‘age_years’ was added to express age in a different unit. If samples are
+identified by a complex code, the ID can be split up into different
+columns. Here we could separate IDs into program, disease code and
+unique case suffix.</p>
 <div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Join on case_submitter_id and verify no case is silently lost or duplicated</span></span>
 <span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="co"># in either direction.</span></span>
 <span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>sample_metadata <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">case_submitter_id =</span> sample_ids) <span class="sc">%&gt;%</span></span>
@@ -78945,12 +79365,12 @@ trusted.</p>
 <span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
 <span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>    <span class="at">age_years =</span> <span class="fu">round</span>(age_at_diagnosis_days <span class="sc">/</span> <span class="fl">365.25</span>, <span class="dv">1</span>)</span>
 <span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>  )</span></code></pre></div>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-72f3318bbd8621c9b4cb" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-72f3318bbd8621c9b4cb">{"x":{"filter":"none","vertical":false,"caption":"<caption>Join between the expression matrix and the clinical sheet.<\/caption>","data":[["Expression samples with no clinical record","Rows before join","Rows after join","Clinical cases with no expression data"],[0,124,124,0]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>check<\/th>\n      <th>value<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"className":"dt-right","targets":1},{"name":"check","targets":0},{"name":"value","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-bc7cb272df998b77ef90" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-bc7cb272df998b77ef90">{"x":{"filter":"none","vertical":false,"caption":"<caption>Join between the expression matrix and the clinical sheet.<\/caption>","data":[["Expression samples with no clinical record","Rows before join","Rows after join","Clinical cases with no expression data"],[0,124,124,0]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>check<\/th>\n      <th>value<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"t","ordering":false,"columnDefs":[{"className":"dt-right","targets":1},{"name":"check","targets":0},{"name":"value","targets":1}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 <p>The full joined, verified sample sheet — downloadable as
 CSV/Excel/PDF — is shown below.</p>
-<div class="datatables html-widget html-fill-item" id="htmlwidget-696977afa4352b507032" style="width:100%;height:auto;"></div>
-<script type="application/json" data-for="htmlwidget-696977afa4352b507032">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>Joined sample metadata (one row per sample): expression matrix columns matched to the real clinical sheet.<\/caption>","data":[["TARGET-50-PAKGMU","TARGET-50-PAKRCC","TARGET-50-PAJNNC","TARGET-50-PAJNLT","TARGET-50-PAKJGM","TARGET-50-PAJLNJ","TARGET-50-PAKGED","TARGET-50-PAJMFU","TARGET-50-PAJLPX","TARGET-50-CAAAAC","TARGET-50-PAJMEP","TARGET-50-PAJMEL","TARGET-50-PALFRD","TARGET-50-PAKVET","TARGET-50-PAKZFK","TARGET-50-PALKCW","TARGET-50-PAJNSL","TARGET-50-PAKXXF","TARGET-50-PAKYFC","TARGET-50-PAJNAV","TARGET-50-PAJNUP","TARGET-50-PAJNVE","TARGET-50-PAJNVX","TARGET-50-PAJMEN","TARGET-50-PAKKSE","TARGET-50-PALGVY","TARGET-50-PAKKNS","TARGET-50-PALDWP","TARGET-50-PALDTE","TARGET-50-PALLFB","TARGET-50-CAAAAJ","TARGET-50-PAJMMY","TARGET-50-PAKFME","TARGET-50-PAJLTH","TARGET-50-PAJNEC","TARGET-50-PAJNJJ","TARGET-50-PAJLLF","TARGET-50-PAKGZX","TARGET-50-PAJNGH","TARGET-50-PAJMKN","TARGET-50-PAKFYV","TARGET-50-PAJMIZ","TARGET-50-PAJNCC","TARGET-50-PAJMFY","TARGET-50-CAAAAO","TARGET-50-PAKYLT","TARGET-50-PAKZER","TARGET-50-PAJLKR","TARGET-50-PAKRZW","TARGET-50-PAJLKC","TARGET-50-PAKNRX","TARGET-50-PAKNAL","TARGET-50-PAKRVH","TARGET-50-PAJMLI","TARGET-50-CAAAAS","TARGET-50-CAAAAR","TARGET-50-PAJPDC","TARGET-50-PAJMRL","TARGET-50-PADXAY","TARGET-50-PALGAZ","TARGET-50-PAJNZK","TARGET-50-PAJPDN","TARGET-50-PAJMXF","TARGET-50-PAJMKI","TARGET-50-PAJNYT","TARGET-50-CAAAAM","TARGET-50-PAJNRH","TARGET-50-PALJIP","TARGET-50-PAKECR","TARGET-50-PALKRS","TARGET-50-PAKWPM","TARGET-50-PAKXWB","TARGET-50-PAJNAA","TARGET-50-PAJPCM","TARGET-50-PAJMSE","TARGET-50-PAEBXA","TARGET-50-PAJMLZ","TARGET-50-PAJNZU","TARGET-50-PAJNZS","TARGET-50-PAJNZI","TARGET-50-PAJLTI","TARGET-50-PAJPGY","TARGET-50-PAJNDU","TARGET-50-PAJLWT","TARGET-50-PAJPHA","TARGET-50-PAJNCZ","TARGET-50-PAJLSP","TARGET-50-PAJMKJ","TARGET-50-CAAAAH","TARGET-50-PAJLIP","TARGET-50-CAAAAP","TARGET-50-PAKSCC","TARGET-50-PAKMUB","TARGET-50-PAKSDG","TARGET-50-PAKUIT","TARGET-50-PALFME","TARGET-50-PAKNXS","TARGET-50-PAKNTW","TARGET-50-CAAAAL","TARGET-50-PAKPDF","TARGET-50-PAJNUS","TARGET-50-PAJMUF","TARGET-50-PAJNBN","TARGET-50-PAJNCJ","TARGET-50-PALEZT","TARGET-50-PAEAFB","TARGET-50-PALERC","TARGET-50-PAJMJT","TARGET-50-CAAAAB","TARGET-50-PAECJB","TARGET-50-PAJNNR","TARGET-50-PAKULH","TARGET-50-PAKZHF","TARGET-50-PAKMSV","TARGET-50-PAJNRL","TARGET-50-PAJNTJ","TARGET-50-CAAAAQ","TARGET-50-PAJMVU","TARGET-50-PALGLU","TARGET-50-PAJMVC","TARGET-50-PADZUB","TARGET-50-PAJPAU","TARGET-50-PAJPAR","TARGET-50-PAJPEW"],["Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable"],[1121,1466,281,1546,1007,325,2809,1348,2702,2244,670,1336,1785,405,1340,1895,160,1821,1069,1449,2201,800,1365,1508,847,1182,547,2104,979,2879,401,1953,1713,2819,1474,5698,2423,2201,851,521,1246,2488,797,1868,1326,2307,2271,2247,2238,2464,1785,2070,2728,1342,2476,314,2904,1685,1958,222,1532,1112,1650,2168,768,2750,1340,1789,1102,2003,1914,2681,3327,1754,1681,1192,1324,970,1789,2842,961,2122,2360,1262,1124,581,706,276,1710,3037,824,691,2412,1002,1236,3703,1245,4779,1599,1912,887,829,1509,1762,4397,490,156,1921,1757,807,2265,1030,1309,1968,1476,707,1287,1638,1275,1548,5557,1389,1950,5082],["female","male","male","female","male","female","female","female","male","female","male","female","female","female","female","male","female","male","female","male","female","female","male","female","female","female","male","male","male","male","female","male","female","male","female","female","female","male","male","female","female","female","male","female","female","female","female","female","female","female","male","female","male","male","female","female","female","male","male","female","female","female","male","male","male","female","female","female","female","male","male","female","female","female","female","female","male","female","female","female","male","female","male","male","male","male","male","female","female","female","male","male","male","male","female","male","male","male","female","female","male","male","male","female","female","male","female","female","female","female","male","female","male","male","male","male","female","female","female","male","female","male","female","male"],["Alive","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Dead","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Alive","Dead","Dead","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive"],["white","white","not reported","black or african american","white","white","white","not reported","black or african american","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","not reported","white","white","white","black or african american","white","black or african american","white","not reported","white","white","white","white","white","white","white","white","black or african american","white","not reported","other","black or african american","white","white","white","black or african american","white","white","white","white","other","white","white","black or african american","white","white","white","white","white","black or african american","not reported","white","white","white","black or african american","white","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","black or african american","black or african american","black or african american","white","white","not reported","white","white","white","white","white","white","white","white","white","white","black or african american","other","not reported","black or african american","white","black or african american","white","white","black or african american","white"],["not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","hispanic or latino","not reported","not reported","not hispanic or latino","not reported","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino"],[3.1,4,0.8,4.2,2.8,0.9,7.7,3.7,7.4,6.1,1.8,3.7,4.9,1.1,3.7,5.2,0.4,5,2.9,4,6,2.2,3.7,4.1,2.3,3.2,1.5,5.8,2.7,7.9,1.1,5.3,4.7,7.7,4,15.6,6.6,6,2.3,1.4,3.4,6.8,2.2,5.1,3.6,6.3,6.2,6.2,6.1,6.7,4.9,5.7,7.5,3.7,6.8,0.9,8,4.6,5.4,0.6,4.2,3,4.5,5.9,2.1,7.5,3.7,4.9,3,5.5,5.2,7.3,9.1,4.8,4.6,3.3,3.6,2.7,4.9,7.8,2.6,5.8,6.5,3.5,3.1,1.6,1.9,0.8,4.7,8.300000000000001,2.3,1.9,6.6,2.7,3.4,10.1,3.4,13.1,4.4,5.2,2.4,2.3,4.1,4.8,12,1.3,0.4,5.3,4.8,2.2,6.2,2.8,3.6,5.4,4,1.9,3.5,4.5,3.5,4.2,15.2,3.8,5.3,13.9]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>case_submitter_id<\/th>\n      <th>histologic_subtype<\/th>\n      <th>age_at_diagnosis_days<\/th>\n      <th>sex_at_birth<\/th>\n      <th>vital_status<\/th>\n      <th>race<\/th>\n      <th>ethnicity<\/th>\n      <th>age_years<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":15,"columnDefs":[{"className":"dt-right","targets":[2,7]},{"name":"case_submitter_id","targets":0},{"name":"histologic_subtype","targets":1},{"name":"age_at_diagnosis_days","targets":2},{"name":"sex_at_birth","targets":3},{"name":"vital_status","targets":4},{"name":"race","targets":5},{"name":"ethnicity","targets":6},{"name":"age_years","targets":7}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,15,25,50,100]}},"evals":[],"jsHooks":[]}</script>
+<div class="datatables html-widget html-fill-item" id="htmlwidget-d8a5dc922f2e4eda86d6" style="width:100%;height:auto;"></div>
+<script type="application/json" data-for="htmlwidget-d8a5dc922f2e4eda86d6">{"x":{"filter":"none","vertical":false,"extensions":["Buttons"],"caption":"<caption>Joined sample metadata (one row per sample): expression matrix columns matched to the real clinical sheet.<\/caption>","data":[["TARGET-50-PAKGMU","TARGET-50-PAKRCC","TARGET-50-PAJNNC","TARGET-50-PAJNLT","TARGET-50-PAKJGM","TARGET-50-PAJLNJ","TARGET-50-PAKGED","TARGET-50-PAJMFU","TARGET-50-PAJLPX","TARGET-50-CAAAAC","TARGET-50-PAJMEP","TARGET-50-PAJMEL","TARGET-50-PALFRD","TARGET-50-PAKVET","TARGET-50-PAKZFK","TARGET-50-PALKCW","TARGET-50-PAJNSL","TARGET-50-PAKXXF","TARGET-50-PAKYFC","TARGET-50-PAJNAV","TARGET-50-PAJNUP","TARGET-50-PAJNVE","TARGET-50-PAJNVX","TARGET-50-PAJMEN","TARGET-50-PAKKSE","TARGET-50-PALGVY","TARGET-50-PAKKNS","TARGET-50-PALDWP","TARGET-50-PALDTE","TARGET-50-PALLFB","TARGET-50-CAAAAJ","TARGET-50-PAJMMY","TARGET-50-PAKFME","TARGET-50-PAJLTH","TARGET-50-PAJNEC","TARGET-50-PAJNJJ","TARGET-50-PAJLLF","TARGET-50-PAKGZX","TARGET-50-PAJNGH","TARGET-50-PAJMKN","TARGET-50-PAKFYV","TARGET-50-PAJMIZ","TARGET-50-PAJNCC","TARGET-50-PAJMFY","TARGET-50-CAAAAO","TARGET-50-PAKYLT","TARGET-50-PAKZER","TARGET-50-PAJLKR","TARGET-50-PAKRZW","TARGET-50-PAJLKC","TARGET-50-PAKNRX","TARGET-50-PAKNAL","TARGET-50-PAKRVH","TARGET-50-PAJMLI","TARGET-50-CAAAAS","TARGET-50-CAAAAR","TARGET-50-PAJPDC","TARGET-50-PAJMRL","TARGET-50-PADXAY","TARGET-50-PALGAZ","TARGET-50-PAJNZK","TARGET-50-PAJPDN","TARGET-50-PAJMXF","TARGET-50-PAJMKI","TARGET-50-PAJNYT","TARGET-50-CAAAAM","TARGET-50-PAJNRH","TARGET-50-PALJIP","TARGET-50-PAKECR","TARGET-50-PALKRS","TARGET-50-PAKWPM","TARGET-50-PAKXWB","TARGET-50-PAJNAA","TARGET-50-PAJPCM","TARGET-50-PAJMSE","TARGET-50-PAEBXA","TARGET-50-PAJMLZ","TARGET-50-PAJNZU","TARGET-50-PAJNZS","TARGET-50-PAJNZI","TARGET-50-PAJLTI","TARGET-50-PAJPGY","TARGET-50-PAJNDU","TARGET-50-PAJLWT","TARGET-50-PAJPHA","TARGET-50-PAJNCZ","TARGET-50-PAJLSP","TARGET-50-PAJMKJ","TARGET-50-CAAAAH","TARGET-50-PAJLIP","TARGET-50-CAAAAP","TARGET-50-PAKSCC","TARGET-50-PAKMUB","TARGET-50-PAKSDG","TARGET-50-PAKUIT","TARGET-50-PALFME","TARGET-50-PAKNXS","TARGET-50-PAKNTW","TARGET-50-CAAAAL","TARGET-50-PAKPDF","TARGET-50-PAJNUS","TARGET-50-PAJMUF","TARGET-50-PAJNBN","TARGET-50-PAJNCJ","TARGET-50-PALEZT","TARGET-50-PAEAFB","TARGET-50-PALERC","TARGET-50-PAJMJT","TARGET-50-CAAAAB","TARGET-50-PAECJB","TARGET-50-PAJNNR","TARGET-50-PAKULH","TARGET-50-PAKZHF","TARGET-50-PAKMSV","TARGET-50-PAJNRL","TARGET-50-PAJNTJ","TARGET-50-CAAAAQ","TARGET-50-PAJMVU","TARGET-50-PALGLU","TARGET-50-PAJMVC","TARGET-50-PADZUB","TARGET-50-PAJPAU","TARGET-50-PAJPAR","TARGET-50-PAJPEW"],["Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Unfavorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Favorable","Favorable","Favorable","Favorable","Unfavorable","Favorable","Unfavorable","Favorable","Favorable","Unfavorable","Favorable"],[1121,1466,281,1546,1007,325,2809,1348,2702,2244,670,1336,1785,405,1340,1895,160,1821,1069,1449,2201,800,1365,1508,847,1182,547,2104,979,2879,401,1953,1713,2819,1474,5698,2423,2201,851,521,1246,2488,797,1868,1326,2307,2271,2247,2238,2464,1785,2070,2728,1342,2476,314,2904,1685,1958,222,1532,1112,1650,2168,768,2750,1340,1789,1102,2003,1914,2681,3327,1754,1681,1192,1324,970,1789,2842,961,2122,2360,1262,1124,581,706,276,1710,3037,824,691,2412,1002,1236,3703,1245,4779,1599,1912,887,829,1509,1762,4397,490,156,1921,1757,807,2265,1030,1309,1968,1476,707,1287,1638,1275,1548,5557,1389,1950,5082],["female","male","male","female","male","female","female","female","male","female","male","female","female","female","female","male","female","male","female","male","female","female","male","female","female","female","male","male","male","male","female","male","female","male","female","female","female","male","male","female","female","female","male","female","female","female","female","female","female","female","male","female","male","male","female","female","female","male","male","female","female","female","male","male","male","female","female","female","female","male","male","female","female","female","female","female","male","female","female","female","male","female","male","male","male","male","male","female","female","female","male","male","male","male","female","male","male","male","female","female","male","male","male","female","female","male","female","female","female","female","male","female","male","male","male","male","female","female","female","male","female","male","female","male"],["Alive","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Dead","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Alive","Alive","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Alive","Alive","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Alive","Dead","Dead","Alive","Dead","Alive","Alive","Dead","Alive","Alive","Dead","Dead","Dead","Dead","Alive","Dead","Dead","Dead","Alive","Alive","Dead","Alive","Dead","Alive","Dead","Alive"],["white","white","not reported","black or african american","white","white","white","not reported","black or african american","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","white","not reported","white","white","white","black or african american","white","black or african american","white","not reported","white","white","white","white","white","white","white","white","black or african american","white","not reported","other","black or african american","white","white","white","black or african american","white","white","white","white","other","white","white","black or african american","white","white","white","white","white","black or african american","not reported","white","white","white","black or african american","white","white","white","white","white","white","white","white","white","white","other","black or african american","white","white","white","white","white","black or african american","black or african american","black or african american","white","white","not reported","white","white","white","white","white","white","white","white","white","white","black or african american","other","not reported","black or african american","white","black or african american","white","white","black or african american","white"],["not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","hispanic or latino","not reported","not reported","not hispanic or latino","not reported","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino","not reported","not reported","not reported","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not reported","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not reported","hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","hispanic or latino","not hispanic or latino","not hispanic or latino","not reported","not hispanic or latino","not hispanic or latino"],[3.1,4,0.8,4.2,2.8,0.9,7.7,3.7,7.4,6.1,1.8,3.7,4.9,1.1,3.7,5.2,0.4,5,2.9,4,6,2.2,3.7,4.1,2.3,3.2,1.5,5.8,2.7,7.9,1.1,5.3,4.7,7.7,4,15.6,6.6,6,2.3,1.4,3.4,6.8,2.2,5.1,3.6,6.3,6.2,6.2,6.1,6.7,4.9,5.7,7.5,3.7,6.8,0.9,8,4.6,5.4,0.6,4.2,3,4.5,5.9,2.1,7.5,3.7,4.9,3,5.5,5.2,7.3,9.1,4.8,4.6,3.3,3.6,2.7,4.9,7.8,2.6,5.8,6.5,3.5,3.1,1.6,1.9,0.8,4.7,8.300000000000001,2.3,1.9,6.6,2.7,3.4,10.1,3.4,13.1,4.4,5.2,2.4,2.3,4.1,4.8,12,1.3,0.4,5.3,4.8,2.2,6.2,2.8,3.6,5.4,4,1.9,3.5,4.5,3.5,4.2,15.2,3.8,5.3,13.9]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>case_submitter_id<\/th>\n      <th>histologic_subtype<\/th>\n      <th>age_at_diagnosis_days<\/th>\n      <th>sex_at_birth<\/th>\n      <th>vital_status<\/th>\n      <th>race<\/th>\n      <th>ethnicity<\/th>\n      <th>age_years<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"dom":"Bfrtip","buttons":["csv","excel","pdf"],"pageLength":15,"columnDefs":[{"className":"dt-right","targets":[2,7]},{"name":"case_submitter_id","targets":0},{"name":"histologic_subtype","targets":1},{"name":"age_at_diagnosis_days","targets":2},{"name":"sex_at_birth","targets":3},{"name":"vital_status","targets":4},{"name":"race","targets":5},{"name":"ethnicity","targets":6},{"name":"age_years","targets":7}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,15,25,50,100]}},"evals":[],"jsHooks":[]}</script>
 </div>
 <div id="group-balance" class="section level2">
 <h2>Group Balance</h2>
@@ -78983,9 +79403,8 @@ reconstructed proxy label, and it is what Module 2 compares
 statistically.</p>
 </div>
 </div>
-</div>
-<div id="why-this-matters-for-pediatric-rare-disease-and-cancer" class="section level1">
-<h1>Why This Matters for Pediatric Rare Disease and Cancer</h1>
+<div id="why-this-matters-for-pediatric-rare-disease-and-cancer" class="section level2">
+<h2>Why This Matters for Pediatric Rare Disease and Cancer</h2>
 <p>Everything above — parsing the barcode, checking histology counts,
 verifying the join — may look like bookkeeping, but it is the step where
 pediatric bioinformatics projects most often fail silently:</p>
@@ -79012,8 +79431,8 @@ analysis choice — it is the same grouping oncologists use to make
 treatment decisions.</li>
 </ul>
 </div>
-<div id="exporting-clean-metadata-for-downstream-modules" class="section level1">
-<h1>Exporting Clean Metadata for Downstream Modules</h1>
+<div id="exporting-clean-metadata-for-downstream-modules" class="section level2">
+<h2>Exporting Clean Metadata for Downstream Modules</h2>
 <p>We save the joined, verified sample sheet so that Modules 1–3 read a
 single, consistent source of truth rather than re-deriving it
 independently.</p>
@@ -79021,9 +79440,10 @@ independently.</p>
 <span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="fu">write_csv</span>(sample_metadata, <span class="st">&quot;data/sample_metadata.csv&quot;</span>)</span></code></pre></div>
 <hr />
 <div class="report-footer">
-<p>Generated on 18 ottobre 2026 · Francesco Cecere (Senior Bioinformatic
+<p>Generated on 20 October 2026 · Francesco Cecere (Senior Bioinformatic
 Researcher) · Eva Luna Tarallo (Junior Bioinformatic Researcher) · AORN
 Santobono-Pausilipon IRCCS</p>
+</div>
 </div>
 </div>
 
