@@ -705,53 +705,29 @@ dgidb_query <- sprintf(
   paste0('"', dgidb_genes, '"', collapse = ",")
 )
 
-dgidb_response <- tryCatch(
-  POST("https://dgidb.org/api/graphql", body = list(query = dgidb_query), encode = "json", timeout(10)),
-  error = function(e) e
-)
+dgidb_response <- POST("https://dgidb.org/api/graphql", body = list(query = dgidb_query), encode = "json")
 
-# Distinguish "the live call failed" from "the call worked and genuinely
-# found nothing" -- an all-zero chart means two very different things
-# depending on which happened, and only one of them is a real result.
-dgidb_query_ok <- !inherits(dgidb_response, "error") && status_code(dgidb_response) == 200
-dgidb_failure_reason <- if (inherits(dgidb_response, "error")) {
-  paste("Request failed:", conditionMessage(dgidb_response))
-} else if (!dgidb_query_ok) {
-  paste("DGIdb returned HTTP", status_code(dgidb_response))
-} else {
-  NA_character_
-}
+dgidb_nodes <- content(dgidb_response, as = "parsed", simplifyVector = TRUE)$data$genes$nodes
 
-dgidb_nodes <- if (dgidb_query_ok) {
-  content(dgidb_response, as = "parsed", simplifyVector = TRUE)$data$genes$nodes
-} else {
-  NULL
-}
-
-dgidb_per_gene <- if (!is.null(dgidb_nodes) && nrow(dgidb_nodes) > 0) {
-  map_dfr(seq_len(nrow(dgidb_nodes)), function(i) {
-    ints <- dgidb_nodes$interactions[[i]]
-    # Unique drug names, approved drugs first -- kept as a list-column so
-    # the full name list survives the later join/arrange, not just a count.
-    drug_names <- if (is.null(ints) || nrow(ints) == 0) {
-      character(0)
-    } else {
-      tibble(name = ints$drug$name, approved = ints$drug$approved) %>%
-        distinct(name, .keep_all = TRUE) %>%
-        arrange(desc(approved)) %>%
-        pull(name)
-    }
-    tibble(
-      gene_symbol    = dgidb_nodes$name[i],
-      n_interactions = if (is.null(ints)) 0L else nrow(ints),
-      n_approved     = if (is.null(ints)) 0L else sum(ints$drug$approved, na.rm = TRUE),
-      drug_names     = list(drug_names)
-    )
-  })
-} else {
-  tibble(gene_symbol = character(), n_interactions = integer(), n_approved = integer(),
-         drug_names = vector("list", 0))
-}
+dgidb_per_gene <- map_dfr(seq_len(nrow(dgidb_nodes)), function(i) {
+  ints <- dgidb_nodes$interactions[[i]]
+  # Unique drug names, approved drugs first -- kept as a list-column so
+  # the full name list survives the later join/arrange, not just a count.
+  drug_names <- if (is.null(ints) || nrow(ints) == 0) {
+    character(0)
+  } else {
+    tibble(name = ints$drug$name, approved = ints$drug$approved) %>%
+      distinct(name, .keep_all = TRUE) %>%
+      arrange(desc(approved)) %>%
+      pull(name)
+  }
+  tibble(
+    gene_symbol    = dgidb_nodes$name[i],
+    n_interactions = if (is.null(ints)) 0L else nrow(ints),
+    n_approved     = if (is.null(ints)) 0L else sum(ints$drug$approved, na.rm = TRUE),
+    drug_names     = list(drug_names)
+  )
+})
 
 dgidb_counts <- tibble(gene_symbol = dgidb_genes) %>%
   left_join(dgidb_per_gene, by = "gene_symbol") %>%
@@ -763,22 +739,7 @@ dgidb_counts <- tibble(gene_symbol = dgidb_genes) %>%
   arrange(desc(n_interactions))
 ```
 
-```{r dgidb-query-status}
-# Printed regardless of outcome, so a failed live call is never mistaken
-# for a genuine "no drug interactions exist" result.
-if (dgidb_query_ok) {
-  cat("DGIdb query succeeded:", sum(dgidb_counts$n_interactions > 0), "of", nrow(dgidb_counts),
-      "genes have at least one recorded interaction.\n")
-} else {
-  cat("DGIdb query FAILED in this session --", dgidb_failure_reason,
-      "\nThe chart and numbers below are from this machine's live result where available;",
-      "if every count reads 0, that reflects this network call failing here, not a real finding.",
-      "This needs outbound internet access to dgidb.org from wherever the Rmd is knit",
-      "(Binder sessions normally have this; a fully offline or heavily firewalled environment will not).\n")
-}
-```
-
-```{r plot-dgidb, fig.width=9, fig.height=5.5, eval=dgidb_query_ok}
+```{r plot-dgidb, fig.width=9, fig.height=5.5}
 p_dgidb <- dgidb_counts %>%
   mutate(gene_symbol = fct_reorder(gene_symbol, n_interactions),
          is_candidate = gene_symbol == candidate_gene) %>%
@@ -795,7 +756,7 @@ p_dgidb <- dgidb_counts %>%
 ggplotly(p_dgidb, tooltip = "text")
 ```
 
-```{r table-dgidb, eval=dgidb_query_ok}
+```{r table-dgidb}
 datatable(
   dgidb_counts,
   extensions = "Buttons",
@@ -807,7 +768,7 @@ datatable(
 
 The top 3 genes by recorded interaction count, with the actual drug names behind that count (approved drugs listed first; capped at 10 names per gene since some genes have dozens):
 
-```{r table-top3-drugs, echo=TRUE, eval=dgidb_query_ok}
+```{r table-top3-drugs, echo=TRUE}
 top3_drugs <- dgidb_counts %>%
   slice_head(n = 3) %>%
   mutate(
@@ -821,7 +782,7 @@ top3_drugs <- dgidb_counts %>%
   select(gene_symbol, n_interactions, n_approved, drug_names_shown)
 ```
 
-```{r table-top3-drugs-display, eval=dgidb_query_ok}
+```{r table-top3-drugs-display}
 datatable(
   top3_drugs,
   extensions = "Buttons",
